@@ -1,5 +1,7 @@
 """Shared Pydantic models used across services."""
 
+import datetime as dt
+from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
@@ -45,13 +47,65 @@ class TimeWindow(BaseModel):
 
 
 class WeatherPoint(BaseModel):
-    """Weather at a single point in time, in metric units."""
+    """Weather at one hour (or the current moment), in metric units."""
 
     time: AwareDatetime
     temp_c: float
     feels_like_c: float
     humidity: float = Field(ge=0, le=100)  # percent
-    rain_prob: float = Field(ge=0, le=1)
+    rain_prob: float | None = Field(default=None, ge=0, le=1)  # None for observations
     wind_kmh: float = Field(ge=0)
+    wind_gust_kmh: float | None = Field(default=None, ge=0)
     uvi: float | None = Field(default=None, ge=0)
+    clouds: float | None = Field(default=None, ge=0, le=100)  # percent
+    visibility_m: float | None = Field(default=None, ge=0)
+    rain_mm: float | None = Field(default=None, ge=0)  # last hour; 0.0 when none fell
+    snow_mm: float | None = Field(default=None, ge=0)  # last hour; 0.0 when none fell
+    condition: str | None = None  # OpenWeather "main", e.g. "Rain"
+    description: str | None = None  # e.g. "light rain"
+    icon: str | None = None  # OpenWeather icon code, e.g. "10d"
+
+
+class DailyWeather(BaseModel):
+    """Weather for one local calendar day, forecast or historical."""
+
+    date: dt.date
+    temp_min_c: float
+    temp_max_c: float
+    temp_morning_c: float | None = None
+    temp_day_c: float | None = None
+    temp_evening_c: float | None = None
+    temp_night_c: float | None = None
+    feels_like_day_c: float | None = None
+    humidity: float | None = Field(default=None, ge=0, le=100)
+    rain_prob: float | None = Field(default=None, ge=0, le=1)
+    rain_mm: float | None = Field(default=None, ge=0)  # day total; 0.0 when none fell
+    snow_mm: float | None = Field(default=None, ge=0)  # day total; 0.0 when none fell
+    wind_kmh: float | None = Field(default=None, ge=0)  # typical wind (forecasts only)
+    wind_max_kmh: float | None = Field(default=None, ge=0)  # forecast gusts / historical peak
+    uvi: float | None = Field(default=None, ge=0)
+    condition: str | None = None
+    description: str | None = None
+    summary: str | None = None  # e.g. "Expect a day of partly cloudy with rain"
+
+
+class WeatherAlert(BaseModel):
+    """A national weather warning."""
+
+    sender: str
+    event: str
+    start: AwareDatetime
+    end: AwareDatetime
     description: str
+
+
+class WeatherResult(BaseModel):
+    """Weather for one location and time window, at one granularity."""
+
+    location: Location
+    window: TimeWindow
+    granularity: Literal["current", "hourly", "daily", "historical"]
+    hourly: list[WeatherPoint] = Field(default_factory=list)
+    daily: list[DailyWeather] = Field(default_factory=list)
+    alerts: list[WeatherAlert] = Field(default_factory=list)
+    fetched_at: AwareDatetime  # when the data came from the provider (not from cache)

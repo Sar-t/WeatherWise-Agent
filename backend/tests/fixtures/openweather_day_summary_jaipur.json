@@ -1,0 +1,33 @@
+{
+  "lat": 26.92,
+  "lon": 75.79,
+  "tz": "+05:30",
+  "date": "2026-10-17",
+  "units": "metric",
+  "cloud_cover": {
+    "afternoon": 6.0
+  },
+  "humidity": {
+    "afternoon": 56.75
+  },
+  "precipitation": {
+    "total": 0.0
+  },
+  "temperature": {
+    "min": 21.62,
+    "max": 30.62,
+    "afternoon": 28.37,
+    "night": 23.62,
+    "evening": 28.87,
+    "morning": 21.87
+  },
+  "pressure": {
+    "afternoon": 1015.0
+  },
+  "wind": {
+    "max": {
+      "speed": 4.25,
+      "direction": 80.0
+    }
+  }
+}

@@ -23,3 +23,7 @@ class UnrecognizedDateError(WeatherWiseError):
 
 class UpstreamAPIError(WeatherWiseError):
     """An external API failed or returned an unusable response."""
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code  # HTTP status, when the API answered at all

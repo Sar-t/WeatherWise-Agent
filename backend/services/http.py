@@ -70,12 +70,12 @@ def _ssl_context() -> ssl.SSLContext:
 def _decode(provider: str, response: httpx.Response) -> Any:
     status = response.status_code
     if status in (401, 403):
-        raise UpstreamAPIError(f"{provider} rejected the API key (HTTP {status}). Check the key in .env.")
+        raise UpstreamAPIError(f"{provider} rejected the API key (HTTP {status}). Check the key in .env.", status)
     if status == 429:
-        raise UpstreamAPIError(f"{provider} rate limit exceeded (HTTP 429). Try again later.")
+        raise UpstreamAPIError(f"{provider} rate limit exceeded (HTTP 429). Try again later.", status)
     if status >= 400:
-        raise UpstreamAPIError(f"{provider} request failed (HTTP {status}).")
+        raise UpstreamAPIError(f"{provider} request failed (HTTP {status}).", status)
     try:
         return response.json()
     except ValueError:
-        raise UpstreamAPIError(f"{provider} returned a response that is not valid JSON.") from None
+        raise UpstreamAPIError(f"{provider} returned a response that is not valid JSON.", status) from None
