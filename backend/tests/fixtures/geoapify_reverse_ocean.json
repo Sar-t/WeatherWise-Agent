@@ -1,0 +1,44 @@
+{
+  "results": [
+    {
+      "name": "South Pacific Ocean",
+      "ocean": "South Pacific Ocean",
+      "datasource": {
+        "sourcename": "whosonfirst",
+        "attribution": "Who's On First",
+        "license": "CC0",
+        "url": "https://www.whosonfirst.org/docs/licenses/"
+      },
+      "lon": -90.56043,
+      "lat": -29.829753,
+      "distance": 3735635.97756093,
+      "result_type": "unknown",
+      "formatted": "",
+      "address_line1": 0,
+      "address_line2": "",
+      "timezone": {
+        "name": "Etc/GMT+6",
+        "offset_STD": "-06:00",
+        "offset_DST": "-06:00",
+        "offset_STD_seconds": -21600,
+        "offset_DST_seconds": -21600
+      },
+      "plus_code": "562F5CCQ+3R",
+      "rank": {
+        "popularity": 0.21781532589449723
+      },
+      "place_id": "51a06cca15dea356c05905c24eb16ad43dc0c00200920313536f7574682050616369666963204f6365616ee2031b77686f736f6e66697273743a6f6365616e3a343034353238373133",
+      "bbox": {
+        "lon1": -180,
+        "lat1": -60.533462,
+        "lon2": 179.999897,
+        "lat2": 3.651302
+      }
+    }
+  ],
+  "query": {
+    "lat": -40,
+    "lon": -130,
+    "plus_code": "44GG2222+22"
+  }
+}

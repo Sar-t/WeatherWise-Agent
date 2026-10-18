@@ -7,7 +7,7 @@ import re
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from backend.services.errors import UnrecognizedDateError
+from backend.services.errors import InvalidInputError, UnrecognizedDateError
 from backend.services.models import TimeWindow
 
 # Local-time hour ranges (start, end). An end <= start crosses into the next day.
@@ -80,7 +80,7 @@ def _local_now(now: datetime | None, zone: ZoneInfo) -> datetime:
     if now is None:
         return datetime.now(zone)
     if now.tzinfo is None or now.utcoffset() is None:
-        raise ValueError("`now` must be timezone-aware")
+        raise InvalidInputError("`now` must be timezone-aware")
     return now.astimezone(zone)
 
 

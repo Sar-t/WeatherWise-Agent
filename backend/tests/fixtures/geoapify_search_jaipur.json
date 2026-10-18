@@ -1,0 +1,93 @@
+{
+  "results": [
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Jaipur",
+      "other_names": {
+        "name:ar": "جايبور",
+        "name:az": "Caypur",
+        "name:be": "Джайпур",
+        "name:bg": "Джайпур",
+        "name:bn": "জয়পুর",
+        "name:cs": "Džajpur",
+        "name:el": "Τζαϊπούρ",
+        "name:eo": "Ĝajpuro",
+        "name:fa": "جایپور",
+        "name:gu": "જયપુર",
+        "name:he": "ג'איפור",
+        "name:hi": "जयपुर",
+        "name:hy": "Ջայպուր",
+        "name:ja": "ジャイプル",
+        "name:ka": "ჯაიპური",
+        "name:kn": "ಜಯಪುರ್",
+        "name:ko": "자이푸르",
+        "name:ml": "ജയ്പൂർ",
+        "name:mr": "जयपुर",
+        "name:ne": "जयपुर",
+        "name:pa": "ਜੈਪੁਰ",
+        "name:ru": "Джайпур",
+        "name:sl": "Džaipur",
+        "name:sr": "Џајпур",
+        "name:ta": "செய்ப்பூர்",
+        "name:uk": "Джайпур",
+        "name:ur": "جے پور",
+        "name:zh": "斋浦尔",
+        "name:sat": "ᱡᱚᱭᱯᱩᱨ",
+        "alt_name:ur": "جئے پور"
+      },
+      "country": "India",
+      "country_code": "in",
+      "state": "Rajasthan",
+      "county": "Jaipur Tehsil",
+      "state_district": "Jaipur",
+      "city": "Jaipur",
+      "postcode": "302001",
+      "iso3166_2": "IN-RJ",
+      "lon": 75.8189817,
+      "lat": 26.9154576,
+      "state_code": "RJ",
+      "result_type": "city",
+      "formatted": "Jaipur, RJ, India",
+      "address_line1": "Jaipur",
+      "address_line2": "Jaipur, RJ, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JRQWR89+5H",
+      "plus_code_short": "WR89+5H Jaipur, Jaipur Tehsil, India",
+      "rank": {
+        "importance": 0.6109736038762036,
+        "popularity": 2.4604825989437606,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51706138326af4524059e9dfe46d5bea3a40f00103f9014ab9d11200000000c002089203064a6169707572",
+      "bbox": {
+        "lon1": 75.6589817,
+        "lat1": 26.7554576,
+        "lon2": 75.9789817,
+        "lat2": 27.0754576
+      }
+    }
+  ],
+  "query": {
+    "text": "Jaipur",
+    "parsed": {
+      "city": "jaipur",
+      "expected_type": "unknown"
+    }
+  }
+}

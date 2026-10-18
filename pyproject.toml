@@ -7,6 +7,7 @@ dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "httpx>=0.27",
+    "certifi",  # CA bundle for the shared TLS context in services/http.py
     "timezonefinder>=6.5",
     "tzdata>=2024.1",  # IANA tz database for zoneinfo (needed on Windows)
 ]

@@ -1,0 +1,62 @@
+{
+  "results": [
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Gautam Hospital and Research Center",
+      "country": "India",
+      "country_code": "in",
+      "state": "Rajasthan",
+      "county": "Jaipur Tehsil",
+      "state_district": "Jaipur",
+      "city": "Jaipur",
+      "postcode": "302006",
+      "district": "Bardar Patel Nagar",
+      "suburb": "Bais Godam",
+      "quarter": "Geejgarh Vihar Colony",
+      "street": "Sawai Pratap Singh Road",
+      "iso3166_2": "IN-RJ",
+      "lon": 75.7899821,
+      "lat": 26.9096883,
+      "state_code": "RJ",
+      "county_code": "JP",
+      "distance": 34.70492128756503,
+      "result_type": "amenity",
+      "formatted": "Gautam Hospital and Research Center, Sawai Pratap Singh Road, Bais Godam, Jaipur - 302006, RJ, India",
+      "address_line1": "Gautam Hospital and Research Center",
+      "address_line2": "Sawai Pratap Singh Road, Bais Godam, Jaipur - 302006, RJ, India",
+      "category": "healthcare.hospital",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JRQWQ5Q+VX",
+      "plus_code_short": "5Q+VX Jaipur, Jaipur Tehsil, India",
+      "rank": {
+        "importance": 6.583886472872537e-05,
+        "popularity": 1.7896592290206952
+      },
+      "place_id": "513afb14118ff2524059c80d1a55e1e83a40f00103f901b83653a301000000c0020192032347617574616d20486f73706974616c20616e642052657365617263682043656e746572e203236f70656e7374726565746d61703a76656e75653a6e6f64652f37303335313037303030",
+      "bbox": {
+        "lon1": 75.7899321,
+        "lat1": 26.9096383,
+        "lon2": 75.7900321,
+        "lat2": 26.9097383
+      }
+    }
+  ],
+  "query": {
+    "lat": 26.91,
+    "lon": 75.79,
+    "plus_code": "7JRQWQ5R+X2"
+  }
+}

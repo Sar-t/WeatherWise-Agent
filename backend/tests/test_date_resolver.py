@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from backend.services.date_resolver import resolve
-from backend.services.errors import UnrecognizedDateError
+from backend.services.errors import InvalidInputError, UnrecognizedDateError
 from backend.services.models import TimeWindow
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -264,7 +264,7 @@ def test_unknown_timezone_raises() -> None:
 
 
 def test_naive_now_is_rejected() -> None:
-    with pytest.raises(ValueError, match="timezone-aware"):
+    with pytest.raises(InvalidInputError, match="timezone-aware"):
         resolve("today", None, TZ, now=datetime(2026, 10, 18, 13))
 
 

@@ -5,6 +5,10 @@ class WeatherWiseError(Exception):
     """Base class for all WeatherWise errors."""
 
 
+class InvalidInputError(WeatherWiseError, ValueError):
+    """A caller passed malformed input, e.g. an empty query or out-of-range coordinates."""
+
+
 class LocationNotFoundError(WeatherWiseError):
     """The requested place could not be geocoded."""
 

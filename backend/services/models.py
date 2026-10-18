@@ -6,13 +6,19 @@ from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_val
 
 
 class Location(BaseModel):
-    """A resolved place, e.g. from the OpenWeather Geocoding API."""
+    """A resolved place, e.g. from the Geoapify geocoding API."""
 
-    name: str
+    name: str  # the place itself: "Jaipur", or an area like "Bandra West"
+    city: str | None = None  # parent city, e.g. "Mumbai" for Bandra West
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
-    country: str  # ISO 3166 country code, e.g. "IN"
+    country: str | None = None  # e.g. "India"; None for places outside any country
+    country_code: str | None = None  # lowercase ISO 3166-1 alpha-2, e.g. "in"
     state: str | None = None
+    formatted: str  # display address, e.g. "Jaipur, RJ, India"
+    result_type: str = "unknown"  # Geoapify type: city, suburb, district, county, ...
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    importance: float | None = Field(default=None, ge=0)  # Geoapify rank.importance
     timezone: str  # IANA name, e.g. "Asia/Kolkata"
 
     @field_validator("timezone")

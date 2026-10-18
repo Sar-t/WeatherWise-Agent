@@ -1,0 +1,10 @@
+{
+  "results": [],
+  "query": {
+    "text": "Paris",
+    "parsed": {
+      "city": "paris",
+      "expected_type": "unknown"
+    }
+  }
+}

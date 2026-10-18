@@ -1,0 +1,320 @@
+{
+  "results": [
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Chhatrapati Sambhajinagar",
+      "old_name": "Aurangabad",
+      "other_names": {
+        "name:ar": "أورنك آباد",
+        "name:bg": "Аурангабад",
+        "name:bn": "সম্ভাজি",
+        "name:fa": "اورنگ‌آباد",
+        "name:gu": "છત્રપતિ સંભાજી મહારાજ",
+        "name:hi": "छत्रपती संभाजीनगर",
+        "name:ja": "アウランガーバード",
+        "name:kn": "ಔರಂಗಾಬಾದ್",
+        "name:ko": "아우랑가바드",
+        "name:ml": "ഔറംഗബാദ്",
+        "name:mr": "छत्रपती संभाजीनगर",
+        "name:ne": "छत्रपति सम्भाजीनगर",
+        "name:pa": "ਔਰੰਗਾਬਾਦ",
+        "name:ru": "Аурангабад",
+        "name:sa": "सम्भाजी",
+        "name:ta": "அவுரங்காபாத்",
+        "name:te": "ఔరంగాబాద్",
+        "name:uk": "Аурангабад",
+        "name:ur": "چھترپتی سمبھاجی نگر",
+        "name:zh": "桑巴吉",
+        "alt_name": "Sambhajinagar;Sambhaji Nagar",
+        "name:pam": "ਛਤਰਪਤੀ ਸੰਭਾਜੀਨਗਰ",
+        "name:pnb": "اورنگ آباد",
+        "old_name": "Aurangabad",
+        "short_name": "C. Sambhajinagar",
+        "alt_name:en": "Sambhajinagar;Sambhaji Nagar",
+        "alt_name:es": "Sambhajinagar;Sambhaji Nagar",
+        "alt_name:hi": "संभाजीनगर",
+        "alt_name:mr": "संभाजीनगर",
+        "alt_name:ur": "سمبھاجی نگر",
+        "old_name:en": "Aurangabad",
+        "old_name:es": "Aurangabad",
+        "old_name:hi": "औरंगाबाद",
+        "old_name:mr": "औरंगाबाद",
+        "old_name:ur": "اورنگ آباد",
+        "short_name:en": "C. Sambhajinagar",
+        "short_name:hi": "छ संभाजीनगर",
+        "short_name:mr": "छ संभाजीनगर"
+      },
+      "country": "India",
+      "country_code": "in",
+      "state": "Maharashtra",
+      "county": "Chhatrapati Sambhajinagar",
+      "state_district": "Chhatrapati Sambhajinagar District",
+      "city": "Chhatrapati Sambhajinagar",
+      "postcode": "431002",
+      "iso3166_2": "IN-MH",
+      "lon": 75.3390241,
+      "lat": 19.877263,
+      "state_code": "MH",
+      "result_type": "city",
+      "formatted": "Chhatrapati Sambhajinagar, MH, India",
+      "address_line1": "Chhatrapati Sambhajinagar",
+      "address_line2": "Chhatrapati Sambhajinagar, MH, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JFQV8GQ+WJ",
+      "rank": {
+        "importance": 0.5295228475277625,
+        "popularity": 0.9794481622940888,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "5193832392b2d5524059a8fdd64e94e03340f00103f901e5dfa40e00000000c0020892031943686861747261706174692053616d6268616a696e61676172",
+      "bbox": {
+        "lon1": 75.1790241,
+        "lat1": 19.717263,
+        "lon2": 75.4990241,
+        "lat2": 20.037263
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Aurangabad",
+      "other_names": {
+        "name:bn": "ঔরঙ্গাবাদ"
+      },
+      "country": "India",
+      "country_code": "in",
+      "state": "West Bengal",
+      "county": "Suti - II",
+      "state_district": "Murshidabad",
+      "city": "Aurangabad",
+      "postcode": "742224",
+      "iso3166_2": "IN-WB",
+      "lon": 88.0265808,
+      "lat": 24.6219732,
+      "state_code": "WB",
+      "result_type": "city",
+      "formatted": "Aurangabad, WB, India",
+      "address_line1": "Aurangabad",
+      "address_line2": "Aurangabad, WB, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7MPCJ2CG+QJ",
+      "rank": {
+        "importance": 0.3281491818164103,
+        "popularity": 0.646974381083037,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51e6acf47fb3015640590cfdb8a2399f3840f00103f9011bb8817301000000c0020892030a417572616e6761626164",
+      "bbox": {
+        "lon1": 87.9865808,
+        "lat1": 24.5819732,
+        "lon2": 88.0665808,
+        "lat2": 24.6619732
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Aurangabad",
+      "other_names": {
+        "name:ar": "أورنك آباد",
+        "name:ja": "アウランガーバード",
+        "name:pa": "ਔਰੰਗਾਬਾਦ",
+        "name:ta": "அவுரங்காபாத்",
+        "name:ur": "اورنگ آباد",
+        "name:bn": "আওরঙ্গাবাদ",
+        "name:fa": "اورنگ آباد",
+        "name:hi": "औरंगाबाद",
+        "name:kn": "ಔರಂಗಾಬಾದ್",
+        "name:ko": "아우랑가바드",
+        "name:ml": "ഔറംഗാബാദ്",
+        "name:ru": "Аурангабад",
+        "name:zh": "奥朗嘎巴特",
+        "name:sat": "ᱚᱣᱨᱚᱝᱜᱟᱵᱟᱫᱽ"
+      },
+      "country": "India",
+      "country_code": "in",
+      "state": "Bihar",
+      "county": "Aurangabad",
+      "city": "Aurangabad",
+      "postcode": "824123",
+      "iso3166_2": "IN-BR",
+      "lon": 84.3746725,
+      "lat": 24.7536696,
+      "state_code": "BR",
+      "result_type": "city",
+      "formatted": "Aurangabad, BR, India",
+      "address_line1": "Aurangabad",
+      "address_line2": "Aurangabad, BR, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7MP6Q93F+FV",
+      "rank": {
+        "importance": 0.1867213984893568,
+        "popularity": 0.7095286269575813,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "517a8d5da2fa1755405949fdab7df0c03840f00102f90158641a0700000000c0020892030a417572616e6761626164",
+      "bbox": {
+        "lon1": 84.3558427,
+        "lat1": 24.7341916,
+        "lon2": 84.4083784,
+        "lat2": 24.7766669
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Aurangabad",
+      "country": "India",
+      "country_code": "in",
+      "state": "Uttar Pradesh",
+      "county": "Maunath Bhanjan",
+      "state_district": "Mau",
+      "city": "Aurangabad",
+      "postcode": "275101",
+      "iso3166_2": "IN-UP",
+      "lon": 83.5424739,
+      "lat": 25.9636369,
+      "state_code": "UP",
+      "result_type": "city",
+      "formatted": "Aurangabad, UP, India",
+      "address_line1": "Aurangabad",
+      "address_line2": "Aurangabad, UP, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7MQ5XG7R+FX",
+      "rank": {
+        "importance": 0.1600433531700618,
+        "popularity": 0.6046623161263048,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51c0db72e4b7e254405905b86ae8b0f63940f00103f90108070ad002000000c0020892030a417572616e6761626164",
+      "bbox": {
+        "lon1": 83.5024739,
+        "lat1": 25.9236369,
+        "lon2": 83.5824739,
+        "lat2": 26.0036369
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Aurangabad",
+      "other_names": {
+        "name:hi": "औरंगाबाद",
+        "name:pa": "ਔਰੰਗਾਬਾਦ",
+        "name:ta": "அவுரங்காபாத்"
+      },
+      "country": "India",
+      "country_code": "in",
+      "state": "Haryana",
+      "county": "Jagadhri",
+      "state_district": "Yamunanagar",
+      "city": "Aurangabad",
+      "postcode": "135106",
+      "iso3166_2": "IN-HR",
+      "lon": 77.2358306,
+      "lat": 30.0998396,
+      "state_code": "HR",
+      "result_type": "city",
+      "formatted": "Aurangabad, HR, India",
+      "address_line1": "Aurangabad",
+      "address_line2": "Aurangabad, HR, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "8J2V36XP+W8",
+      "rank": {
+        "importance": 0.14672091935606923,
+        "popularity": 0.7356941777267244,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "5159993ad9174f53405981d888168f193e40f00103f901dc59e9b400000000c0020892030a417572616e6761626164",
+      "bbox": {
+        "lon1": 77.2158306,
+        "lat1": 30.0798396,
+        "lon2": 77.2558306,
+        "lat2": 30.1198396
+      }
+    }
+  ],
+  "query": {
+    "text": "Aurangabad",
+    "parsed": {
+      "city": "aurangabad",
+      "expected_type": "unknown"
+    }
+  }
+}

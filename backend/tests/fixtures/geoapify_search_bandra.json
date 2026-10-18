@@ -1,0 +1,262 @@
+{
+  "results": [
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Bandra West",
+      "other_names": {
+        "name:hi": "बांद्रा पश्चिम",
+        "name:mr": "वांद्रे पश्चिम"
+      },
+      "country": "India",
+      "country_code": "in",
+      "state": "Maharashtra",
+      "county": "Mumbai Suburban District",
+      "city": "Mumbai",
+      "district": "Mumbai Zone 3",
+      "suburb": "Bandra West",
+      "iso3166_2": "IN-MH",
+      "lon": 72.8302669,
+      "lat": 19.0583358,
+      "state_code": "MH",
+      "result_type": "suburb",
+      "formatted": "Bandra West, Mumbai, Mumbai Zone 3, India",
+      "address_line1": "Bandra West",
+      "address_line2": "Mumbai, Mumbai Zone 3, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JFJ3R5J+84",
+      "plus_code_short": "3R5J+84 Mumbai, Mumbai Suburban District, India",
+      "rank": {
+        "importance": 0.4446870948506422,
+        "popularity": 3.5949831960628655,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51e29cc71723355240599d2f5118ef0e3340f00102f901e597ec1100000000c0020592030b42616e6472612057657374",
+      "bbox": {
+        "lon1": 72.8182339,
+        "lat1": 19.0405971,
+        "lon2": 72.8413455,
+        "lat2": 19.081622
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Bandra",
+      "country": "India",
+      "country_code": "in",
+      "state": "Madhya Pradesh",
+      "county": "Chaurai Tahsil",
+      "state_district": "Chhindwara",
+      "district": "Bandra",
+      "iso3166_2": "IN-MP",
+      "city": "Bandra",
+      "lon": 79.1978968,
+      "lat": 22.1774166,
+      "state_code": "MP",
+      "result_type": "suburb",
+      "formatted": "Bandra, India",
+      "address_line1": "Bandra",
+      "address_line2": "India",
+      "category": "administrative",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JJX55GX+X5",
+      "rank": {
+        "importance": 0.16004000076295108,
+        "popularity": 0.5588788673881332,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51eafe5657aacc5340597cc49e2c6b2d3640f00101f901f06cfc0000000000c0020592030642616e647261",
+      "bbox": {
+        "lon1": 79.1795267,
+        "lat1": 22.1635089,
+        "lon2": 79.2043615,
+        "lat2": 22.1911887
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Bandra",
+      "other_names": {
+        "name:hi": "बंद्रा"
+      },
+      "country": "India",
+      "country_code": "in",
+      "state": "Rajasthan",
+      "county": "Tijara Tehsil",
+      "state_district": "Khairthal-Tijara",
+      "city": "Bandra",
+      "iso3166_2": "IN-RJ",
+      "lon": 76.783576,
+      "lat": 27.9374318,
+      "state_code": "RJ",
+      "result_type": "city",
+      "formatted": "Bandra, RJ, India",
+      "address_line1": "Bandra",
+      "address_line2": "RJ, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JVRWQPM+XC",
+      "rank": {
+        "importance": 0.14670802395666432,
+        "popularity": 0.8329734401900449,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "518d7bf31b2632534059fc3acb87fbef3b40f00103f901392426b801000000c0020892030642616e647261",
+      "bbox": {
+        "lon1": 76.763576,
+        "lat1": 27.9174318,
+        "lon2": 76.803576,
+        "lat2": 27.9574318
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Bandra",
+      "country": "India",
+      "country_code": "in",
+      "state": "Madhya Pradesh",
+      "county": "Chaurai Tahsil",
+      "state_district": "Chhindwara",
+      "city": "Bandra",
+      "iso3166_2": "IN-MP",
+      "lon": 79.1884889,
+      "lat": 22.1897158,
+      "state_code": "MP",
+      "result_type": "city",
+      "formatted": "Bandra, MP, India",
+      "address_line1": "Bandra",
+      "address_line2": "MP, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JJX55QQ+V9",
+      "rank": {
+        "importance": 0.14670666742961772,
+        "popularity": 0.5612899102474648,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "512d4abf3310cc534059d388f43691303640f00103f901c15f25a702000000c0020892030642616e647261",
+      "bbox": {
+        "lon1": 79.1684889,
+        "lat1": 22.1697158,
+        "lon2": 79.2084889,
+        "lat2": 22.2097158
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Bandra",
+      "country": "India",
+      "country_code": "in",
+      "state": "Bihar",
+      "county": "Bandra",
+      "state_district": "Muzaffarpur",
+      "city": "Bandra",
+      "postcode": "848160",
+      "iso3166_2": "IN-BR",
+      "lon": 85.6320655,
+      "lat": 26.0675388,
+      "state_code": "BR",
+      "result_type": "city",
+      "formatted": "Bandra, BR, India",
+      "address_line1": "Bandra",
+      "address_line2": "Bandra, BR, India",
+      "category": "populated_place",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7MR73J9J+2R",
+      "rank": {
+        "importance": 0.14670416800183103,
+        "popularity": 0.6191942946246702,
+        "confidence": 1,
+        "confidence_city_level": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "5183dbdac273685540590a3609394a113a40f00103f9013344fd9d01000000c0020892030642616e647261",
+      "bbox": {
+        "lon1": 85.6120655,
+        "lat1": 26.0475388,
+        "lon2": 85.6520655,
+        "lat2": 26.0875388
+      }
+    }
+  ],
+  "query": {
+    "text": "Bandra",
+    "parsed": {
+      "city": "bandra",
+      "expected_type": "unknown"
+    }
+  }
+}
