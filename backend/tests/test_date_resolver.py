@@ -147,7 +147,7 @@ def test_weekend_with_explicit_range() -> None:
 
 
 def test_weekend_nights_on_sunday_keeps_only_sunday_night() -> None:
-    windows = resolve("this_weekend", "night", TZ)
+    windows = resolve("this_weekend", "night", TZ, now=NOW)
     assert bounds(windows) == [(ist(2026, 10, 18, 21), ist(2026, 10, 19, 6))]
 
 

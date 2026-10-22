@@ -1,0 +1,130 @@
+# Understanding evals: run with `python evals/run_understanding.py` (real LLM, not part of pytest).
+# `expected` lists only the slots a case checks. For cases with `previous`, the check is on the
+# slots after merging the follow-up, i.e. what resolution would actually receive.
+# Locations compare case-insensitively and in any order; time ranges compare by the window they mean.
+
+# --- weather -----------------------------------------------------------------
+- id: weather_basic
+  message: Will it rain in Jaipur tomorrow evening?
+  expected: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: evening}
+
+- id: weather_current_location
+  message: How hot will it get this afternoon?
+  expected: {intent: weather, locations: [], date_expr: today, time_expr: afternoon}
+
+- id: weather_slang
+  message: tmrw morning weather in pune
+  expected: {intent: weather, locations: [pune], date_expr: tomorrow, time_expr: morning}
+
+- id: weather_explicit_range
+  message: Weather in Hyderabad from 7 to 9 pm today
+  expected: {intent: weather, locations: [Hyderabad], date_expr: today, time_expr: 7-9pm}
+
+# --- Hinglish ----------------------------------------------------------------
+- id: hinglish_tomorrow
+  message: kal subah Jaipur mein baarish hogi?
+  expected: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: morning}
+
+- id: hinglish_past_kal
+  message: kal raat Delhi mein kitni baarish hui thi?
+  expected: {intent: weather, locations: [Delhi], date_expr: yesterday, time_expr: night}
+
+- id: hinglish_parso
+  message: parso Mumbai mein dhoop niklegi kya?
+  expected: {intent: weather, locations: [Mumbai], date_expr: day_after_tomorrow}
+
+- id: hinglish_activity
+  message: aaj shaam cycling ke liye mausam theek rahega?
+  expected: {intent: activity_recommendation, activity: cycling, date_expr: today, time_expr: evening, recommendation_type: suitability}
+
+# --- recommendation types ----------------------------------------------------
+- id: suitability_run
+  message: Is it a good idea to go for a run tomorrow between 6 and 8 am?
+  expected: {intent: activity_recommendation, activity: running, date_expr: tomorrow, time_expr: 6-8am, recommendation_type: suitability}
+
+- id: best_time_cycling
+  message: When is the best time to go cycling in Bangalore this weekend?
+  expected: {intent: activity_recommendation, activity: cycling, locations: [Bangalore], date_expr: this_weekend, recommendation_type: best_time}
+
+- id: avoid_heat
+  message: Which hours should I avoid being outdoors in Chennai tomorrow because of the heat?
+  expected: {locations: [Chennai], date_expr: tomorrow, recommendation_type: avoid}
+
+- id: packing
+  message: What should I pack for Manali next Friday?
+  expected: {intent: clothing_recommendation, locations: [Manali], date_expr: next_friday, recommendation_type: packing}
+
+- id: clothing_tonight
+  message: Do I need a jacket in Delhi tonight?
+  expected: {intent: clothing_recommendation, locations: [Delhi], date_expr: today, time_expr: night}
+
+- id: travel_timing
+  message: When should I leave for Agra tomorrow to stay ahead of the rain?
+  expected: {intent: travel_recommendation, locations: [Agra], date_expr: tomorrow, recommendation_type: travel_timing}
+
+# --- comparison --------------------------------------------------------------
+- id: comparison_two
+  message: Compare the weather in Delhi and Mumbai tomorrow
+  expected: {intent: comparison, locations: [Delhi, Mumbai], date_expr: tomorrow}
+
+- id: comparison_three
+  message: Jaipur vs Udaipur vs Jodhpur for sightseeing next Saturday, which is best?
+  expected: {intent: comparison, locations: [Jaipur, Udaipur, Jodhpur], date_expr: next_saturday}
+
+# --- places ------------------------------------------------------------------
+- id: ambiguous_city_kept_as_written
+  message: Will it rain in Aurangabad tomorrow?
+  expected: {intent: weather, locations: [Aurangabad], date_expr: tomorrow}
+
+- id: area_name
+  message: Is it windy in Connaught Place right now?
+  expected: {intent: weather, locations: [Connaught Place], date_expr: today}
+
+# --- unsupported dates -------------------------------------------------------
+- id: unsupported_next_month
+  message: What will the weather be like in Kerala next month?
+  expected: {needs_clarification: true}
+
+- id: unsupported_calendar_date
+  message: Is 25th December going to be sunny in Shimla?
+  expected: {needs_clarification: true}
+
+# --- out of scope / unclear --------------------------------------------------
+- id: out_of_scope_cricket
+  message: Who won the cricket match yesterday?
+  expected: {intent: out_of_scope}
+
+- id: out_of_scope_code
+  message: Write a python function to sort a list
+  expected: {intent: out_of_scope}
+
+- id: unclear
+  message: hmm
+  expected: {intent: unclear}
+
+# --- follow-ups --------------------------------------------------------------
+- id: followup_date
+  previous: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: evening}
+  message: what about the day after?
+  expected: {is_follow_up: true, intent: weather, locations: [Jaipur], date_expr: day_after_tomorrow, time_expr: evening}
+
+- id: followup_place
+  previous: {intent: weather, locations: [Jaipur], date_expr: tomorrow}
+  message: and Delhi?
+  expected: {is_follow_up: true, locations: [Delhi], date_expr: tomorrow}
+
+- id: followup_time_hinglish
+  previous: {intent: activity_recommendation, activity: running, locations: [Pune], date_expr: today, time_expr: morning, recommendation_type: suitability}
+  message: aur shaam ko?
+  expected: {is_follow_up: true, activity: running, locations: [Pune], time_expr: evening}
+
+- id: followup_answers_which_city
+  previous: {intent: weather, date_expr: tomorrow, time_expr: morning}
+  pending_question: Which city?
+  message: Lucknow
+  expected: {is_follow_up: true, locations: [Lucknow], date_expr: tomorrow, time_expr: morning}
+
+- id: new_query_not_follow_up
+  previous: {intent: weather, locations: [Jaipur], date_expr: tomorrow}
+  message: Is it a good day for a picnic in Lucknow this weekend?
+  expected: {is_follow_up: false, intent: activity_recommendation, activity: picnic, locations: [Lucknow], date_expr: this_weekend}

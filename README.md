@@ -13,7 +13,7 @@ models, errors and a date resolver.
 backend/
   core/       settings (.env) and logging
   services/   shared models, errors, date resolver (tool services go here later)
-  agent/      LangGraph agent (later)
+  agent/      query understanding: LLM extraction, resolution, follow-ups, CLI
   api/        FastAPI routes (later)
   tests/
 ingestion/    RAG document ingestion (later)
@@ -29,7 +29,7 @@ Requires Python 3.11+.
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env   # then fill in OPENWEATHER_API_KEY and GEOAPIFY_API_KEY
+cp .env.example .env   # then fill in the API keys (see comments in the file)
 ```
 
 ## Run tests
@@ -48,4 +48,14 @@ Needs both keys in `.env`; the OpenWeather key must have the "One Call API 3.0" 
 
 ```bash
 python scripts/smoke_weather.py "Jaipur" tomorrow evening
+```
+
+## Try the agent's understanding layer
+
+Needs `GOOGLE_API_KEY` and `LLM_MODEL` in `.env`. Leave `LLM_MODEL` empty once to list the
+Flash models your key can use. On the free tier each model allows about 20 requests per day.
+
+```bash
+python -m backend.agent.cli --lat 26.91 --lon 75.79 --debug   # --lat/--lon simulate the device
+python evals/run_understanding.py --pause 5                     # real-LLM evals, run manually
 ```

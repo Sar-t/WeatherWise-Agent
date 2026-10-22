@@ -10,12 +10,16 @@ dependencies = [
     "certifi",  # CA bundle for the shared TLS context in services/http.py
     "timezonefinder>=6.5",
     "tzdata>=2024.1",  # IANA tz database for zoneinfo (needed on Windows)
+    "langchain>=1.0",
+    "langchain-core>=1.0",
+    "langchain-google-genai>=4.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "respx>=0.21",
+    "pyyaml>=6.0",  # evals/understanding_cases.yaml
 ]
 
 [build-system]

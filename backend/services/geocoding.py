@@ -24,6 +24,7 @@ WORLD_BIAS = "rect:-180,-90,180,90"
 TIE_MARGIN = 0.1  # confidence/importance this close counts as a tie when ranking
 AMBIGUITY_IMPORTANCE_GAP = 0.25  # rivals within this importance of the best are plausible
 NEAR_DUPLICATE_KM = 5.0
+LOCAL_KM = 50.0  # a candidate this close to the user is "the local one"
 
 cache: Cache = InMemoryCache()
 
@@ -85,7 +86,7 @@ async def reverse_geocode(lat: float, lon: float) -> Location:
             lat=lat,
             lon=lon,
             formatted=f"{lat:.4f}, {lon:.4f}",
-            timezone=_timezone_at(lat, lon),
+            timezone=timezone_at(lat, lon),
         )
     else:
         # Name the city, not the nearest building/street the point happens to fall on.
@@ -95,10 +96,13 @@ async def reverse_geocode(lat: float, lon: float) -> Location:
     return location
 
 
-def pick_best(candidates: list[Location], preferred_country: str = "in") -> tuple[Location, bool]:
+def pick_best(
+    candidates: list[Location], preferred_country: str = "in", near: tuple[float, float] | None = None
+) -> tuple[Location, bool]:
     """Choose the most likely candidate and say whether the choice is ambiguous.
 
-    If exactly one candidate is in `preferred_country`, it wins outright. Otherwise rank
+    If exactly one candidate is within LOCAL_KM of `near` (the user's (lat, lon)), it wins
+    outright; next, the same for `preferred_country`. Otherwise rank
     by confidence, then importance (ties within TIE_MARGIN), then city-level results,
     then API order. Ambiguous means another plausible candidate is in a different
     state or country and not just a near-duplicate of the best one.
@@ -106,14 +110,41 @@ def pick_best(candidates: list[Location], preferred_country: str = "in") -> tupl
     if not candidates:
         raise LocationNotFoundError("No candidate locations to choose from.")
 
+    if near is not None:
+        here = Location(name="", lat=near[0], lon=near[1], formatted="", timezone="UTC")
+        local = [c for c in candidates if _distance_km(here, c) <= LOCAL_KM]
+        if len(local) == 1:
+            return local[0], False
+
     preferred = preferred_country.strip().lower()
     in_preferred = [c for c in candidates if c.country_code == preferred]
     if len(in_preferred) == 1:
         return in_preferred[0], False
 
     best = _rank_best(candidates)
-    ambiguous = any(_is_plausible_rival(best, c) for c in candidates if c is not best)
-    return best, ambiguous
+    return best, bool(alternatives(best, candidates))
+
+
+def alternatives(best: Location, candidates: list[Location]) -> list[Location]:
+    """Other candidates plausible enough to make `best` ambiguous, in API order."""
+    return [c for c in candidates if c is not best and _is_plausible_rival(best, c)]
+
+
+def distinct_places(best: Location, candidates: list[Location], limit: int = 3) -> list[Location]:
+    """`best` then other candidates in API order, skipping near-duplicates and repeated states.
+
+    For listing choices to the user once pick_best has said the name is ambiguous.
+    """
+    chosen = [best]
+    for c in candidates:
+        if len(chosen) >= limit:
+            break
+        if all(
+            (c.state, c.country_code) != (o.state, o.country_code) and _distance_km(c, o) > NEAR_DUPLICATE_KM
+            for o in chosen
+        ):
+            chosen.append(c)
+    return chosen
 
 
 def _api_key() -> str:
@@ -173,7 +204,7 @@ def _to_location(result: dict[str, Any], area_name: bool = True) -> Location:
         result_type=result.get("result_type") or "unknown",
         confidence=rank.get("confidence"),
         importance=rank.get("importance"),
-        timezone=(result.get("timezone") or {}).get("name") or _timezone_at(lat, lon),
+        timezone=(result.get("timezone") or {}).get("name") or timezone_at(lat, lon),
     )
 
 
@@ -182,7 +213,8 @@ def _timezone_finder() -> TimezoneFinder:
     return TimezoneFinder()
 
 
-def _timezone_at(lat: float, lon: float) -> str:
+def timezone_at(lat: float, lon: float) -> str:
+    """IANA timezone at a point (timezonefinder); "UTC" if it has none."""
     return _timezone_finder().timezone_at(lat=lat, lng=lon) or "UTC"
 
 

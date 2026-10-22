@@ -13,6 +13,15 @@ class Settings(BaseSettings):
 
     openweather_api_key: SecretStr = SecretStr("")
     geoapify_api_key: SecretStr = SecretStr("")
+
+    llm_provider: str = "google_genai"  # any LangChain init_chat_model provider
+    llm_model: str = ""  # e.g. a Gemini Flash model; empty -> list what the key can use
+    llm_temperature: float = 0.0
+    google_api_key: SecretStr = SecretStr("")
+
+    langsmith_tracing: bool = False
+    langsmith_api_key: SecretStr = SecretStr("")
+    langsmith_project: str = "weatherwise"
     log_level: str = "INFO"
 
 

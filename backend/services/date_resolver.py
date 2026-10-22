@@ -28,6 +28,12 @@ RELATIVE_DAYS: dict[str, int] = {
 }
 
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+THIS_WEEKEND = "this_weekend"
+
+# Every date expression resolve() accepts, and the named times of day. Built from the
+# constants above so callers (e.g. the LLM prompt) can't drift from what is supported.
+DATE_EXPRESSIONS: list[str] = [*RELATIVE_DAYS, *(f"next_{day}" for day in WEEKDAYS), THIS_WEEKEND]
+TIME_EXPRESSIONS: list[str] = list(TIME_OF_DAY)
 
 # One clock time: "7am", "7_am", "7:30pm", "07:00", "19:00". Underscores stand in for spaces.
 _CLOCK = r"(\d{1,2})(?::(\d{2}))?_?(am|pm)?"
@@ -57,11 +63,20 @@ def resolve(
     start_min, end_min = _parse_time(time_key)
     date_key = _normalize(date_expr)
 
-    if date_key == "this_weekend":
+    if date_key == THIS_WEEKEND:
         return _weekend_windows(now, zone, start_min, end_min, whole_day=time_key in ("", "full_day"))
 
     day = _resolve_day(date_key, now.date())
     return [TimeWindow(start=_at(day, start_min, zone), end=_at(day, end_min, zone))]
+
+
+def is_supported_time(time_expr: str | None) -> bool:
+    """True if `time_expr` is a named time of day, an explicit range resolve() accepts, or empty."""
+    try:
+        _parse_time(_normalize(time_expr or ""))
+    except UnrecognizedDateError:
+        return False
+    return True
 
 
 def _normalize(expr: str) -> str:

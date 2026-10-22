@@ -335,3 +335,21 @@ async def test_pick_best_ignores_near_duplicates(respx_mock) -> None:
 def test_pick_best_requires_candidates() -> None:
     with pytest.raises(LocationNotFoundError):
         pick_best([])
+
+
+async def test_distinct_places_skips_near_duplicates_and_repeated_states(respx_mock) -> None:
+    paris_city, paris_suburb, texas = await candidates(respx_mock, "geoapify_search_paris_world.json")
+    assert geocoding.distinct_places(paris_city, [paris_city, paris_suburb, texas]) == [paris_city, texas]
+    assert geocoding.distinct_places(paris_city, [paris_city, paris_suburb, texas], limit=1) == [paris_city]
+
+
+async def test_pick_best_prefers_the_single_local_candidate(respx_mock) -> None:
+    aurangabad = await candidates(respx_mock, "geoapify_search_aurangabad.json")
+    best, ambiguous = pick_best(aurangabad, near=(24.70, 84.40))  # beside Aurangabad, Bihar
+    assert (best.state, ambiguous) == ("Bihar", False)
+
+
+async def test_pick_best_ignores_near_when_nothing_is_local(respx_mock) -> None:
+    aurangabad = await candidates(respx_mock, "geoapify_search_aurangabad.json")
+    best, ambiguous = pick_best(aurangabad, near=(26.91, 75.79))  # Jaipur: no Aurangabad within 50 km
+    assert (best.state, ambiguous) == ("Maharashtra", True)
