@@ -1,0 +1,71 @@
+# India's National Air Quality Index (NAQI) breakpoints.
+#
+# Source: Central Pollution Control Board (CPCB), "National Air Quality Index" (October 2014),
+# Chapter 3 breakpoint tables, as reproduced by the Government of India's IES Arthapedia page:
+#   https://ies.gov.in/arthapedia/concept/national-air-quality-index   (checked 2026-10-22)
+# Every band below matches that table. CPCB's own PDF link (cpcb.nic.in -> cpcb.gov.in
+# /upload/national-air-quality-index/AQI-Report.pdf) returned 404 when checked.
+#
+# Rules from the same source, applied in naqi.py:
+#   - sub-index by linear interpolation within the band; overall NAQI = highest sub-index
+#   - at least 3 pollutants, one of them PM2.5 or PM10, else no overall NAQI
+#   - 24-hour averages, except CO and O3 (8-hour); 16 hours of data needed for a sub-index
+#
+# Each pollutant lists the UPPER concentration of Good, Satisfactory, Moderately Polluted, Poor
+# and Very Poor. Anything above the last value is Severe.
+#
+# SEVERE BAND (NAQI 401-500): CPCB's table is open-ended ("430+" etc.). To interpolate inside it
+# we assume the Severe band is as wide as the Very Poor band (PM10: 430-510). This is a common
+# convention in NAQI calculators, NOT part of CPCB's official table. Above it, NAQI is 500.
+#
+# Pb is in CPCB's table but OpenWeather doesn't report it, so it is left out.
+
+[categories]
+names = ["Good", "Satisfactory", "Moderately Polluted", "Poor", "Very Poor", "Severe"]
+index_upper = [50, 100, 200, 300, 400, 500]
+
+[pollutants."PM10"]
+component = "pm10"
+averaging_hours = 24
+unit = "ug/m3"
+upper = [50, 100, 250, 350, 430]
+
+[pollutants."PM2.5"]
+component = "pm2_5"
+averaging_hours = 24
+unit = "ug/m3"
+upper = [30, 60, 90, 120, 250]
+
+[pollutants."NO2"]
+component = "no2"
+averaging_hours = 24
+unit = "ug/m3"
+upper = [40, 80, 180, 280, 400]
+
+[pollutants."SO2"]
+component = "so2"
+averaging_hours = 24
+unit = "ug/m3"
+upper = [40, 80, 380, 800, 1600]
+
+[pollutants."NH3"]
+component = "nh3"
+averaging_hours = 24
+unit = "ug/m3"
+upper = [200, 400, 800, 1200, 1800]
+
+# O3: CPCB marks 748 as a 1-hour value "for calculation only"; the 8-hour mean is compared
+# against it here, which only matters at extreme ozone levels.
+[pollutants."O3"]
+component = "o3"
+averaging_hours = 8
+unit = "ug/m3"
+upper = [50, 100, 168, 208, 748]
+
+# CO: breakpoints are in mg/m3; OpenWeather reports ug/m3, so values are multiplied by 0.001.
+[pollutants."CO"]
+component = "co"
+averaging_hours = 8
+unit = "mg/m3"
+scale = 0.001
+upper = [1.0, 2.0, 10, 17, 34]

@@ -109,3 +109,54 @@ class WeatherResult(BaseModel):
     daily: list[DailyWeather] = Field(default_factory=list)
     alerts: list[WeatherAlert] = Field(default_factory=list)
     fetched_at: AwareDatetime  # when the data came from the provider (not from cache)
+
+
+class AirComponents(BaseModel):
+    """Pollutant concentrations in ug/m3 (as OpenWeather reports them); None if missing."""
+
+    co: float | None = None
+    no: float | None = None
+    no2: float | None = None
+    o3: float | None = None
+    so2: float | None = None
+    pm2_5: float | None = None
+    pm10: float | None = None
+    nh3: float | None = None
+
+
+class AirQualityPoint(BaseModel):
+    """Air quality for one hour (or the current moment)."""
+
+    time: AwareDatetime
+    components: AirComponents  # this hour's readings
+    owm_aqi: int | None = Field(default=None, ge=1, le=5)  # OpenWeather's own 1-5 scale, not NAQI
+    naqi: int | None = Field(default=None, ge=0, le=500)  # India NAQI from trailing averages
+    naqi_category: str | None = None
+    dominant_pollutant: str | None = None  # e.g. "PM2.5"
+    sub_indices: dict[str, int] = Field(default_factory=dict)  # per pollutant, e.g. {"PM2.5": 182}
+    indicative: bool = False  # averages had fewer hours than CPCB asks for
+    naqi_reason: str | None = None  # why naqi is None
+
+
+class AirQualitySummary(BaseModel):
+    """Headline numbers over a window."""
+
+    naqi_max: int | None = None
+    naqi_max_at: AwareDatetime | None = None
+    naqi_category: str | None = None  # category of naqi_max
+    dominant_pollutant: str | None = None  # at naqi_max
+    owm_aqi_max: int | None = None
+    pm2_5_avg: float | None = None  # mean of the hourly readings in the window
+    pm10_avg: float | None = None
+    indicative: bool = False  # any point in the window was indicative
+
+
+class AirQualityResult(BaseModel):
+    """Air quality for one location and time window."""
+
+    location: Location
+    window: TimeWindow
+    granularity: Literal["current", "hourly", "historical"]
+    points: list[AirQualityPoint] = Field(default_factory=list)
+    summary: AirQualitySummary = Field(default_factory=AirQualitySummary)
+    fetched_at: AwareDatetime  # when the data came from the provider (not from cache)
