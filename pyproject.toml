@@ -14,13 +14,13 @@ dependencies = [
     "langchain-core>=1.0",
     "langchain-google-genai>=4.0",
     "langgraph>=1.0",
+    "pyyaml>=6.0",  # services/scoring/activities.yaml, evals
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "respx>=0.21",
-    "pyyaml>=6.0",  # evals/understanding_cases.yaml
 ]
 
 [build-system]
@@ -32,6 +32,7 @@ include = ["backend*"]
 
 [tool.setuptools.package-data]
 "backend.services" = ["data/*.toml"]  # NAQI breakpoints
+"backend.services.scoring" = ["*.yaml"]  # activity profiles
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

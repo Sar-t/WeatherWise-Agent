@@ -172,6 +172,38 @@ async def test_tomorrow_evening_has_four_hourly_points(onecall) -> None:
     assert [p.time for p in result.hourly] == [ist(2026, 10, 19, h, 30) for h in (17, 18, 19, 20)]
 
 
+# --- sunrise / sunset --------------------------------------------------------
+
+
+def _sun_of(entry: dict) -> tuple[datetime, datetime]:
+    return datetime.fromtimestamp(entry["sunrise"], IST), datetime.fromtimestamp(entry["sunset"], IST)
+
+
+async def test_hourly_and_daily_results_carry_sun_times_per_local_date(onecall) -> None:
+    hourly = await get_weather(JAIPUR, window("tomorrow", "evening"), now=NOW)
+    [sun] = hourly.sun
+    assert sun.date == date(2026, 10, 19) and (sun.sunrise, sun.sunset) == _sun_of(ONECALL["daily"][1])
+    assert sun.sunrise.tzinfo.key == TZ
+
+    night = await get_weather(JAIPUR, window("today", "night"), now=NOW)  # 21:00-06:00
+    assert [s.date for s in night.sun] == [date(2026, 10, 18), date(2026, 10, 19)]
+
+    daily = await get_weather(JAIPUR, window("next_thursday"), now=NOW)
+    assert [(s.date, s.sunrise, s.sunset) for s in daily.sun] == [(date(2026, 10, 22), *_sun_of(ONECALL["daily"][4]))]
+
+    current = await get_current(JAIPUR)
+    assert [s.date for s in current.sun] == [date(2026, 10, 18)]
+
+
+async def test_past_hours_take_sun_times_from_timemachine(timemachine) -> None:
+    result = await get_weather(JAIPUR, window("yesterday", "6pm-7pm"), now=NOW)
+    assert [(s.date, s.sunrise, s.sunset) for s in result.sun] == [(date(2026, 10, 17), *_sun_of(TIMEMACHINE["data"][0]))]
+
+
+async def test_day_summary_has_no_sun_times(day_summary) -> None:
+    assert (await get_weather(JAIPUR, window("yesterday"), now=NOW)).sun == []
+
+
 async def test_window_within_8_days_is_daily(onecall) -> None:
     result = await get_weather(JAIPUR, window("next_thursday"), now=NOW)  # 2026-10-22
     assert result.granularity == "daily"

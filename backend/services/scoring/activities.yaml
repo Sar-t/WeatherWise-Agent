@@ -1,0 +1,199 @@
+# Activity profiles for the scoring engine.
+#
+# STARTING VALUES, TO BE TUNED. They are deliberately conservative and drafted for Indian
+# conditions, where heat and air quality are the most common reasons an outdoor plan fails.
+#
+# Factor ranges. Scores are 100 inside "ideal", fall linearly to 50 at the "acceptable" edge,
+# then to 0 at the "hard" limit:
+#   feels_like_c   two-sided, in °C: {ideal: [lo, hi], acceptable: [lo, hi], hard: [lo, hi]}
+#   rain_prob      0-1, the chance of rain in that hour
+#   rain_mm        mm per hour. AMS intensity bands: light < 2.5, moderate 2.5-7.6, heavy > 7.6
+#   wind_kmh, wind_gust_kmh, uvi, naqi   higher is worse: {ideal_max, acceptable_max, hard_max}
+#   visibility_m   lower is worse: {ideal_min, acceptable_min, hard_min}. IMD calls < 200 m dense fog
+# NAQI bands: Satisfactory <= 100, Moderately Polluted <= 200, Poor <= 300, Very Poor <= 400.
+#
+# Weights set how much each factor counts in an hour's weighted mean.
+# hard_stops zero an hour outright:
+#   thunderstorm   the condition is a thunderstorm
+#   heavy_rain     heavy rain in the condition text, >= 7.6 mm/h, or >= 64.5 mm/day (IMD "heavy")
+#   severe_alert   an active weather alert whose event matches severe_alert_keywords below
+#   severe_naqi    NAQI 401+ (Severe)
+# duration_hours is the length of the best-time block. needs_daylight limits best times to the
+# hours between sunrise and sunset.
+
+profiles:
+  # Running: hard exertion raises body heat and breathing rate. Heat and air quality therefore
+  # dominate. The hot limits sit low because humid 30+ °C feels-like is already risky when running.
+  # Light rain is tolerable, so rain counts less than heat.
+  running:
+    duration_hours: 1
+    needs_daylight: false
+    factors:
+      feels_like_c:  {ideal: [10, 26], acceptable: [5, 31], hard: [0, 36]}
+      rain_prob:     {ideal_max: 0.2, acceptable_max: 0.5, hard_max: 0.8}
+      rain_mm:       {ideal_max: 0.5, acceptable_max: 2.5, hard_max: 7.6}
+      wind_kmh:      {ideal_max: 15, acceptable_max: 30, hard_max: 45}
+      wind_gust_kmh: {ideal_max: 25, acceptable_max: 45, hard_max: 65}
+      uvi:           {ideal_max: 3, acceptable_max: 7, hard_max: 11}
+      visibility_m:  {ideal_min: 2000, acceptable_min: 1000, hard_min: 200}
+      naqi:          {ideal_max: 100, acceptable_max: 200, hard_max: 300}
+    weights: {feels_like_c: 3, rain_prob: 2, rain_mm: 2, wind_kmh: 1, wind_gust_kmh: 1, uvi: 1, visibility_m: 1, naqi: 3}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert, severe_naqi]
+
+  # Cycling: speed adds wind chill but also exposure to headwinds and gusts. Wet roads are
+  # slippery, and cyclists share roads with traffic, so rain amount, wind, gusts and visibility
+  # weigh more than for running. Two hours of exertion keeps heat and NAQI high.
+  cycling:
+    duration_hours: 2
+    needs_daylight: true
+    factors:
+      feels_like_c:  {ideal: [10, 27], acceptable: [5, 32], hard: [0, 37]}
+      rain_prob:     {ideal_max: 0.2, acceptable_max: 0.4, hard_max: 0.7}
+      rain_mm:       {ideal_max: 0.3, acceptable_max: 2.5, hard_max: 7.6}
+      wind_kmh:      {ideal_max: 12, acceptable_max: 25, hard_max: 40}
+      wind_gust_kmh: {ideal_max: 20, acceptable_max: 40, hard_max: 55}
+      uvi:           {ideal_max: 3, acceptable_max: 7, hard_max: 11}
+      visibility_m:  {ideal_min: 3000, acceptable_min: 1500, hard_min: 500}
+      naqi:          {ideal_max: 100, acceptable_max: 200, hard_max: 300}
+    weights: {feels_like_c: 3, rain_prob: 2, rain_mm: 3, wind_kmh: 2, wind_gust_kmh: 2, uvi: 1, visibility_m: 2, naqi: 3}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert, severe_naqi]
+
+  # Walking: low exertion, so wider heat and cold ranges, more rain tolerance (an umbrella
+  # works), and a slightly higher NAQI hard limit. It still counts as outdoor exposure.
+  walking:
+    duration_hours: 1
+    needs_daylight: false
+    factors:
+      feels_like_c:  {ideal: [12, 30], acceptable: [6, 35], hard: [2, 40]}
+      rain_prob:     {ideal_max: 0.3, acceptable_max: 0.6, hard_max: 0.85}
+      rain_mm:       {ideal_max: 1.0, acceptable_max: 4.0, hard_max: 10}
+      wind_kmh:      {ideal_max: 20, acceptable_max: 35, hard_max: 50}
+      wind_gust_kmh: {ideal_max: 30, acceptable_max: 50, hard_max: 70}
+      uvi:           {ideal_max: 3, acceptable_max: 7, hard_max: 11}
+      visibility_m:  {ideal_min: 1000, acceptable_min: 500, hard_min: 100}
+      naqi:          {ideal_max: 100, acceptable_max: 200, hard_max: 350}
+    weights: {feels_like_c: 3, rain_prob: 2, rain_mm: 2, wind_kmh: 1, wind_gust_kmh: 1, uvi: 1, visibility_m: 1, naqi: 2}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert, severe_naqi]
+
+  # Hiking: long exposure, far from shelter, on terrain that rain makes slippery. Thunderstorms
+  # on exposed ridges are dangerous, and navigation needs visibility. Rain gets the strictest
+  # limits; UV is tighter because of 4+ hours in the sun.
+  hiking:
+    duration_hours: 4
+    needs_daylight: true
+    factors:
+      feels_like_c:  {ideal: [8, 25], acceptable: [3, 30], hard: [-3, 35]}
+      rain_prob:     {ideal_max: 0.15, acceptable_max: 0.4, hard_max: 0.7}
+      rain_mm:       {ideal_max: 0.3, acceptable_max: 2.0, hard_max: 6.0}
+      wind_kmh:      {ideal_max: 15, acceptable_max: 30, hard_max: 45}
+      wind_gust_kmh: {ideal_max: 25, acceptable_max: 45, hard_max: 60}
+      uvi:           {ideal_max: 3, acceptable_max: 6, hard_max: 10}
+      visibility_m:  {ideal_min: 5000, acceptable_min: 2000, hard_min: 500}
+      naqi:          {ideal_max: 100, acceptable_max: 200, hard_max: 300}
+    weights: {feels_like_c: 3, rain_prob: 3, rain_mm: 3, wind_kmh: 2, wind_gust_kmh: 2, uvi: 2, visibility_m: 2, naqi: 2}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert, severe_naqi]
+
+  # Football (outdoor team sports): intense, stop-start exertion, so heat and NAQI matter as
+  # much as for running. Games go on in light rain, so rain chance counts little. needs_daylight
+  # is false because many grounds are floodlit.
+  football:
+    duration_hours: 2
+    needs_daylight: false
+    factors:
+      feels_like_c:  {ideal: [10, 27], acceptable: [5, 32], hard: [0, 36]}
+      rain_prob:     {ideal_max: 0.3, acceptable_max: 0.6, hard_max: 0.85}
+      rain_mm:       {ideal_max: 1.0, acceptable_max: 4.0, hard_max: 7.6}
+      wind_kmh:      {ideal_max: 20, acceptable_max: 35, hard_max: 50}
+      wind_gust_kmh: {ideal_max: 30, acceptable_max: 50, hard_max: 65}
+      uvi:           {ideal_max: 3, acceptable_max: 7, hard_max: 11}
+      visibility_m:  {ideal_min: 1000, acceptable_min: 500, hard_min: 200}
+      naqi:          {ideal_max: 100, acceptable_max: 200, hard_max: 300}
+    weights: {feels_like_c: 3, rain_prob: 1, rain_mm: 2, wind_kmh: 1, wind_gust_kmh: 1, uvi: 1, visibility_m: 1, naqi: 3}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert, severe_naqi]
+
+  # Picnic: sitting still for hours. Comfort matters more than exertion, so the ideal range is
+  # warmer. Rain is the main spoiler and gets the most weight with the strictest limits. Wind
+  # blows things around. Visibility barely matters.
+  picnic:
+    duration_hours: 3
+    needs_daylight: true
+    factors:
+      feels_like_c:  {ideal: [15, 30], acceptable: [10, 34], hard: [5, 39]}
+      rain_prob:     {ideal_max: 0.1, acceptable_max: 0.3, hard_max: 0.6}
+      rain_mm:       {ideal_max: 0.1, acceptable_max: 1.0, hard_max: 4.0}
+      wind_kmh:      {ideal_max: 15, acceptable_max: 25, hard_max: 40}
+      wind_gust_kmh: {ideal_max: 25, acceptable_max: 40, hard_max: 55}
+      uvi:           {ideal_max: 3, acceptable_max: 7, hard_max: 10}
+      visibility_m:  {ideal_min: 1000, acceptable_min: 500, hard_min: 100}
+      naqi:          {ideal_max: 100, acceptable_max: 200, hard_max: 300}
+    weights: {feels_like_c: 2, rain_prob: 4, rain_mm: 3, wind_kmh: 2, wind_gust_kmh: 1, uvi: 1, visibility_m: 0.5, naqi: 2}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert, severe_naqi]
+
+  # Travel (road travel / driving): the person is mostly inside a vehicle, so heat, UV and
+  # NAQI count little and have wide ranges. Visibility (winter fog in north India) dominates.
+  # Rain amount (waterlogging, aquaplaning) and gusts (two-wheelers, high-sided vehicles) follow.
+  # Severe NAQI is not a hard stop, and the NAQI hard limit is the top of the scale: driving
+  # through smog is unpleasant but not unsafe in itself, so bad air lowers the score without zeroing it.
+  # duration_hours is per trip; callers pass the trip length when they know it.
+  travel:
+    duration_hours: 1
+    needs_daylight: false
+    factors:
+      feels_like_c:  {ideal: [5, 35], acceptable: [0, 40], hard: [-10, 46]}
+      rain_prob:     {ideal_max: 0.3, acceptable_max: 0.6, hard_max: 0.9}
+      rain_mm:       {ideal_max: 1.0, acceptable_max: 4.0, hard_max: 10}
+      wind_kmh:      {ideal_max: 30, acceptable_max: 45, hard_max: 60}
+      wind_gust_kmh: {ideal_max: 40, acceptable_max: 60, hard_max: 80}
+      uvi:           {ideal_max: 6, acceptable_max: 9, hard_max: 12}
+      visibility_m:  {ideal_min: 5000, acceptable_min: 1000, hard_min: 200}
+      naqi:          {ideal_max: 200, acceptable_max: 350, hard_max: 500}
+    weights: {feels_like_c: 1, rain_prob: 2, rain_mm: 3, wind_kmh: 1, wind_gust_kmh: 2, uvi: 0.5, visibility_m: 4, naqi: 1}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert]
+
+  # General outdoor: the fallback for activities without a profile. It assumes moderate exertion,
+  # with ranges between walking and running, and no daylight requirement.
+  general_outdoor:
+    duration_hours: 2
+    needs_daylight: false
+    factors:
+      feels_like_c:  {ideal: [12, 28], acceptable: [6, 33], hard: [2, 38]}
+      rain_prob:     {ideal_max: 0.2, acceptable_max: 0.5, hard_max: 0.8}
+      rain_mm:       {ideal_max: 0.5, acceptable_max: 2.5, hard_max: 7.6}
+      wind_kmh:      {ideal_max: 15, acceptable_max: 30, hard_max: 45}
+      wind_gust_kmh: {ideal_max: 25, acceptable_max: 45, hard_max: 65}
+      uvi:           {ideal_max: 3, acceptable_max: 7, hard_max: 11}
+      visibility_m:  {ideal_min: 2000, acceptable_min: 1000, hard_min: 200}
+      naqi:          {ideal_max: 100, acceptable_max: 200, hard_max: 300}
+    weights: {feels_like_c: 3, rain_prob: 2, rain_mm: 2, wind_kmh: 1, wind_gust_kmh: 1, uvi: 1, visibility_m: 1, naqi: 2}
+    hard_stops: [thunderstorm, heavy_rain, severe_alert, severe_naqi]
+
+# Hints, checked in this order (safety first), against the hours of the best block (or, if
+# there is none, all upcoming hours). at_least compares with the highest value in those hours,
+# at_most with the lowest. Duplicates are dropped and at most 4 are shown.
+hints:
+  - {factor: feels_like_c, at_least: 35, text: "Wear light, breathable clothes, carry water and avoid the midday heat."}
+  - {factor: naqi, at_least: 201, text: "Consider an N95 mask and a shorter or lighter session."}
+  - {factor: rain_prob, at_least: 0.4, text: "Carry an umbrella or a rain jacket."}
+  - {factor: uvi, at_least: 6, text: "Use sunscreen and wear a cap."}
+  - {factor: feels_like_c, at_most: 12, text: "Dress in layers."}
+  - {factor: wind_kmh, at_least: 30, text: "Take a windproof layer."}
+
+# A weather alert whose event contains one of these (case-insensitive) is severe and a hard
+# stop. Other alerts are listed as reasons without changing the score.
+severe_alert_keywords:
+  - red
+  - orange
+  - severe
+  - extreme
+  - thunderstorm
+  - lightning
+  - squall
+  - hail
+  - cyclone
+  - heavy rain
+  - flood
+  - heat wave
+  - heatwave
+  - cold wave
+  - dense fog
+  - dust storm

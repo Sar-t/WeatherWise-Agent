@@ -13,7 +13,15 @@ from backend.core.config import get_settings
 from backend.services.cache import Cache, InMemoryCache
 from backend.services.errors import InvalidInputError, OutOfRangeError, UpstreamAPIError
 from backend.services.http import get_json
-from backend.services.models import DailyWeather, Location, TimeWindow, WeatherAlert, WeatherPoint, WeatherResult
+from backend.services.models import (
+    DailyWeather,
+    Location,
+    SunTimes,
+    TimeWindow,
+    WeatherAlert,
+    WeatherPoint,
+    WeatherResult,
+)
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +64,7 @@ async def get_current(location: Location) -> WeatherResult:
         granularity="current",
         hourly=[point],
         alerts=_alerts(raw, window, tz),
+        sun=_sun(raw.get("daily") or [], window, tz),
         fetched_at=fetched_at.astimezone(tz),
     )
 
@@ -143,13 +152,14 @@ def _forecast_result(
         hourly=hourly,
         daily=daily,
         alerts=_alerts(raw, window, tz),
+        sun=_sun(raw.get("daily") or [], window, tz),
         fetched_at=fetched_at.astimezone(tz),
     )
 
 
 async def _timemachine_result(location: Location, window: TimeWindow, tz: ZoneInfo, calls: _Calls) -> WeatherResult:
     """One timemachine request per whole hour overlapping the window."""
-    points, fetched = [], []
+    points, entries, fetched = [], [], []
     hour = window.start.replace(minute=0, second=0, microsecond=0)
     while hour < window.end:
         ts = int(hour.timestamp())
@@ -157,11 +167,13 @@ async def _timemachine_result(location: Location, window: TimeWindow, tz: ZoneIn
             TIMEMACHINE_URL, _coords(location) | {"dt": ts}, f"timemachine|{_coord_key(location)}|{ts}",
             HISTORY_TTL_S, calls,
         )
+        entries += raw.get("data") or []
         points += [_point(p, tz) for p in raw.get("data") or []]
         fetched.append(fetched_at)
         hour = (hour.astimezone(timezone.utc) + HOUR).astimezone(tz)  # step in UTC: DST-safe
     return WeatherResult(
-        location=location, window=window, granularity="historical", hourly=points, fetched_at=min(fetched).astimezone(tz)
+        location=location, window=window, granularity="historical", hourly=points,
+        sun=_sun(entries, window, tz), fetched_at=min(fetched).astimezone(tz),
     )
 
 
@@ -191,6 +203,18 @@ def _local_dates(window: TimeWindow, tz: ZoneInfo) -> list[date]:
     first = window.start.astimezone(tz).date()
     last = (window.end - timedelta(microseconds=1)).astimezone(tz).date()
     return [first + timedelta(days=i) for i in range((last - first).days + 1)]
+
+
+def _sun(entries: list[dict[str, Any]], window: TimeWindow, tz: ZoneInfo) -> list[SunTimes]:
+    """Sunrise/sunset per local date the window touches, from entries that carry them
+    (onecall `daily`, timemachine `data`). The first entry for a date wins."""
+    days, out = set(_local_dates(window, tz)), {}
+    for e in entries:
+        day = _local(e["dt"], tz).date()
+        if day in days and day not in out:
+            out[day] = SunTimes(date=day, sunrise=_local(e["sunrise"], tz) if e.get("sunrise") else None,
+                                sunset=_local(e["sunset"], tz) if e.get("sunset") else None)
+    return [out[d] for d in sorted(out)]
 
 
 def _alerts(raw: dict[str, Any], window: TimeWindow, tz: ZoneInfo) -> list[WeatherAlert]:

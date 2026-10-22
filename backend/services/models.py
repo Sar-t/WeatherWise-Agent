@@ -99,6 +99,14 @@ class WeatherAlert(BaseModel):
     description: str
 
 
+class SunTimes(BaseModel):
+    """Sunrise and sunset for one local date; None where the provider gives none (polar day/night)."""
+
+    date: dt.date
+    sunrise: AwareDatetime | None = None
+    sunset: AwareDatetime | None = None
+
+
 class WeatherResult(BaseModel):
     """Weather for one location and time window, at one granularity."""
 
@@ -108,6 +116,7 @@ class WeatherResult(BaseModel):
     hourly: list[WeatherPoint] = Field(default_factory=list)
     daily: list[DailyWeather] = Field(default_factory=list)
     alerts: list[WeatherAlert] = Field(default_factory=list)
+    sun: list[SunTimes] = Field(default_factory=list)  # for the local dates the window touches, when known
     fetched_at: AwareDatetime  # when the data came from the provider (not from cache)
 
 
