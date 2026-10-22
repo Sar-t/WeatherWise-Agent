@@ -1,0 +1,271 @@
+{
+  "results": [
+    {
+      "country": "India",
+      "country_code": "in",
+      "state": "Uttarakhand",
+      "county": "Dehradun",
+      "city": "Dehradun",
+      "hamlet": "Mājra",
+      "postcode": "248001",
+      "county_district": "Dehradun",
+      "street": "Saharanpur Road",
+      "name": "Delhi Darbar",
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "state_code": "UT",
+      "iso3166_2": "IN-UK",
+      "lon": 77.9999289,
+      "lat": 30.2923174,
+      "distance": 5609.197826013149,
+      "result_type": "amenity",
+      "formatted": "Delhi Darbar, Saharanpur Road, Dehradun - 248001, UT, India",
+      "address_line1": "Delhi Darbar",
+      "address_line2": "Saharanpur Road, Dehradun - 248001, UT, India",
+      "category": "catering.restaurant",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "8J2V7XRX+WX",
+      "rank": {
+        "popularity": 0.8823945807590318,
+        "confidence": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51d1f4c8d5fe7f534059400d2950d54a3e40f00103f90177859a7501000000c0020192030c44656c686920446172626172",
+      "bbox": {
+        "lon1": 77.9999289,
+        "lat1": 30.2923174,
+        "lon2": 77.9999289,
+        "lat2": 30.2923174
+      }
+    },
+    {
+      "country": "India",
+      "country_code": "in",
+      "state": "Uttarakhand",
+      "county": "Dehradun",
+      "city": "Dehradun",
+      "postcode": "248001",
+      "county_district": "Dehradun",
+      "street": "Vidyasagar Marg",
+      "name": "Delhi Public School, Kalagaon,Dehradun",
+      "other_names": {
+        "name": "Delhi Public School, Kalagaon,Dehradun",
+        "alt_name": "DPS Dehradun"
+      },
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "state_code": "UT",
+      "iso3166_2": "IN-UK",
+      "lon": 78.1061073,
+      "lat": 30.3618511,
+      "distance": 9374.113441669138,
+      "result_type": "amenity",
+      "formatted": "Delhi Public School, Kalagaon,Dehradun, Vidyasagar Marg, Dehradun - 248001, UT, India",
+      "address_line1": "Delhi Public School, Kalagaon,Dehradun",
+      "address_line2": "Vidyasagar Marg, Dehradun - 248001, UT, India",
+      "category": "education.school",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "8J2W9464+PC",
+      "rank": {
+        "popularity": 0.801789585436448,
+        "confidence": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "517bd74576ca8653405989851046a25c3e40f00102f9016115cb5400000000c0020192032644656c6869205075626c6963205363686f6f6c2c204b616c6167616f6e2c446568726164756e",
+      "bbox": {
+        "lon1": 78.1045712,
+        "lat1": 30.3610013,
+        "lon2": 78.1076419,
+        "lat2": 30.3626961
+      }
+    },
+    {
+      "country": "India",
+      "country_code": "in",
+      "state": "Uttarakhand",
+      "county": "Dehra Dūn",
+      "state_district": "Dehradun",
+      "city": "Sahaspur",
+      "postcode": "248197",
+      "county_district": "Vikasnagar",
+      "street": "Local link Road",
+      "name": "Delhi Public School",
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "state_code": "UT",
+      "iso3166_2": "IN-UK",
+      "lon": 77.781367,
+      "lat": 30.4153115,
+      "distance": 30461.421163105068,
+      "result_type": "amenity",
+      "formatted": "Delhi Public School, Local link Road, Sahaspur - 248197, UT, India",
+      "address_line1": "Delhi Public School",
+      "address_line2": "Local link Road, Sahaspur - 248197, UT, India",
+      "category": "education.school",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "8J2VCQ8J+4G",
+      "rank": {
+        "popularity": 0.6974667690376787,
+        "confidence": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "511dcbbbea01725340591827beda516a3e40f00103f901f1e1d81703000000c0020192031344656c6869205075626c6963205363686f6f6c",
+      "bbox": {
+        "lon1": 77.781367,
+        "lat1": 30.4153115,
+        "lon2": 77.781367,
+        "lat2": 30.4153115
+      }
+    },
+    {
+      "country": "India",
+      "country_code": "in",
+      "state": "Uttarakhand",
+      "county": "Tehri Garhwal",
+      "postcode": "249137",
+      "county_district": "Narendra Nagar",
+      "neighbourhood": "Laxman Jhula",
+      "suburb": "Tapovan",
+      "street": "NH7",
+      "name": "Delhi Chaat Wala",
+      "other_names": {
+        "name": "Delhi Chaat Wala",
+        "name:en": "Delhi Chaat Wala",
+        "name:hi": "दिल्ली चाट वाला"
+      },
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "state_code": "UT",
+      "iso3166_2": "IN-UK",
+      "lon": 78.3235623,
+      "lat": 30.12853,
+      "distance": 40946.357129243486,
+      "result_type": "amenity",
+      "city": "Tapowan",
+      "formatted": "Delhi Chaat Wala, NH7, Tapovan, Tapowan - 249137, UT, India",
+      "address_line1": "Delhi Chaat Wala",
+      "address_line2": "NH7, Tapovan, Tapowan - 249137, UT, India",
+      "category": "catering.fast_food",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "8J2W48HF+CC",
+      "rank": {
+        "popularity": 1.1404095392109415,
+        "confidence": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51fd2da63eb5945340590d8e9257e7203e40f00103f901ab58891003000000c0020192031044656c68692043686161742057616c61",
+      "bbox": {
+        "lon1": 78.3235623,
+        "lat1": 30.12853,
+        "lon2": 78.3235623,
+        "lat2": 30.12853
+      }
+    },
+    {
+      "country": "India",
+      "country_code": "in",
+      "state": "Uttarakhand",
+      "county": "Haridwar",
+      "city": "Haridwar",
+      "hamlet": "Jawālāpur",
+      "postcode": "249401",
+      "county_district": "Hardwar",
+      "street": "NH334",
+      "name": "Delhi Public School",
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "state_code": "UT",
+      "iso3166_2": "IN-UK",
+      "lon": 78.0905202,
+      "lat": 29.9307126,
+      "distance": 51064.33944423576,
+      "result_type": "amenity",
+      "formatted": "Delhi Public School, NH334, Haridwar - 249401, UT, India",
+      "address_line1": "Delhi Public School",
+      "address_line2": "NH334, Haridwar - 249401, UT, India",
+      "category": "education.school",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JXWW3JR+76",
+      "plus_code_short": "W3JR+76 Haridwar, India",
+      "rank": {
+        "popularity": 0.7875690491220262,
+        "confidence": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "5127a83c15cb85534059a2f9522e43ee3d40f00102f901356df04800000000c0020192031344656c6869205075626c6963205363686f6f6c",
+      "bbox": {
+        "lon1": 78.0873618,
+        "lat1": 29.927625,
+        "lon2": 78.094734,
+        "lat2": 29.9336598
+      }
+    }
+  ],
+  "query": {
+    "text": "Delhi",
+    "parsed": {
+      "city": "delhi",
+      "expected_type": "unknown"
+    }
+  }
+}

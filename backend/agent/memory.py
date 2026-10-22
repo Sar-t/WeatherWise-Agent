@@ -2,10 +2,13 @@
 
 import re
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+
+from pydantic import BaseModel, Field
 
 from backend.agent.extraction import Extraction, extract
 from backend.agent.resolution import option_label, place_key, resolve_query
-from backend.agent.schemas import QueryUnderstanding, ResolvedQuery, UserContext
+from backend.agent.schemas import Clarification, QueryUnderstanding, ResolvedQuery, UserContext
 from backend.services.models import Location
 
 Extractor = Callable[..., Awaitable[Extraction]]
@@ -45,48 +48,71 @@ def match_option(reply: str, options: list[Location], typed: str = "", preferred
     return hits[0] if len(hits) == 1 else None
 
 
+class MemoryState(BaseModel):
+    """What carries over between turns (JSON-serializable, so a checkpointer can store it)."""
+
+    previous: QueryUnderstanding | None = None
+    pending: Clarification | None = None  # the question we last asked, if any
+    pinned: dict[str, Location] = Field(default_factory=dict)  # typed place name -> chosen Location
+
+
+@dataclass
+class Turn:
+    """This turn's understanding and how to record its resolution."""
+
+    understanding: QueryUnderstanding
+    extraction: Extraction | None  # None when a clarification was answered without the LLM
+    remember: bool = True  # False for a garbled message: keep the earlier query and question
+
+
+async def understand(memory: MemoryState, message: str, ctx: UserContext, extractor: Extractor = extract) -> tuple[Turn, MemoryState]:
+    """Work out what this message asks, given the conversation so far."""
+    memory = memory.model_copy(deep=True)
+    clarification = memory.pending
+
+    if clarification and clarification.reason == "ambiguous_location" and memory.previous is not None:
+        choice = match_option(message, clarification.options, clarification.location_query or "",
+                              ctx.preferred_country)
+        if choice is not None:  # answered without needing the LLM
+            memory.pinned[place_key(clarification.location_query or "")] = choice
+            return Turn(memory.previous, None), memory
+
+    extraction = await extractor(
+        message, ctx, previous=memory.previous, pending_question=clarification.question if clarification else None,
+    )
+    new = extraction.understanding
+    if new.intent == "unclear" and memory.previous is not None and not new.is_follow_up:
+        return Turn(new, extraction, remember=False), memory  # don't lose the earlier query over one garbled message
+
+    if new.is_follow_up and memory.previous is not None:
+        understanding = merge(memory.previous, new)
+    else:
+        understanding = new
+        memory.pinned.clear()
+    memory.previous = understanding
+    return Turn(understanding, extraction), memory
+
+
+def record(memory: MemoryState, turn: Turn, result: ResolvedQuery) -> MemoryState:
+    """Remember the question we're asking (if any) for the next turn."""
+    if not turn.remember:
+        return memory
+    return memory.model_copy(update={"pending": result.clarification if result.status == "clarify" else None})
+
+
 class Conversation:
-    """One user's chat session. Keeps the previous slots and any pending clarification."""
+    """One user's chat session without the graph (understand + resolve only)."""
 
     def __init__(self, ctx: UserContext, extractor: Extractor = extract) -> None:
         self.ctx = ctx
         self._extract = extractor
-        self.previous: QueryUnderstanding | None = None
-        self.pending: ResolvedQuery | None = None  # last result, if it asked a question
-        self.pinned: dict[str, Location] = {}  # typed place name -> chosen Location
+        self.memory = MemoryState()
         self.last_extraction: Extraction | None = None  # for --debug
 
     async def handle(self, message: str) -> ResolvedQuery:
         """Understand and resolve one user message in the context of the conversation."""
-        self.last_extraction = None
-        clarification = self.pending.clarification if self.pending else None
-
-        if clarification and clarification.reason == "ambiguous_location" and self.previous is not None:
-            choice = match_option(message, clarification.options, clarification.location_query or "",
-                                  self.ctx.preferred_country)
-            if choice is not None:  # answered without needing the LLM
-                self.pinned[place_key(clarification.location_query or "")] = choice
-                return await self._resolve(self.previous)
-
-        extraction = await self._extract(
-            message, self.ctx, previous=self.previous,
-            pending_question=clarification.question if clarification else None,
-        )
-        self.last_extraction = extraction
-        new = extraction.understanding
-        if new.intent == "unclear" and self.previous is not None and not new.is_follow_up:
-            return await resolve_query(new, self.ctx)  # don't lose the earlier query over one garbled message
-
-        if new.is_follow_up and self.previous is not None:
-            understanding = merge(self.previous, new)
-        else:
-            understanding = new
-            self.pinned.clear()
-        self.previous = understanding
-        return await self._resolve(understanding)
-
-    async def _resolve(self, understanding: QueryUnderstanding) -> ResolvedQuery:
-        result = await resolve_query(understanding, self.ctx, self.pinned)
-        self.pending = result if result.status == "clarify" else None
+        turn, self.memory = await understand(self.memory, message, self.ctx, self._extract)
+        self.last_extraction = turn.extraction
+        result = await resolve_query(turn.understanding, self.ctx, self.memory.pinned)
+        self.memory = record(self.memory, turn, result)
         return result
-

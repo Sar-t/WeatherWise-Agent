@@ -18,7 +18,7 @@ backend/
   tests/
 ingestion/    RAG document ingestion (later)
 scripts/      manual smoke scripts (real APIs)
-evals/        agent evaluations (later)
+evals/        real-LLM evals for understanding and answers
 ```
 
 ## Install
@@ -50,12 +50,20 @@ Needs both keys in `.env`; the OpenWeather key must have the "One Call API 3.0" 
 python scripts/smoke_weather.py "Jaipur" tomorrow evening
 ```
 
-## Try the agent's understanding layer
+## Chat with the agent
 
-Needs `GOOGLE_API_KEY` and `LLM_MODEL` in `.env`. Leave `LLM_MODEL` empty once to list the
-Flash models your key can use. On the free tier each model allows about 20 requests per day.
+Needs `GOOGLE_API_KEY` and `LLM_MODEL` in `.env` (plus the weather and geocoding keys). Leave
+`LLM_MODEL` empty once to list the Flash models your key can use. On the free tier each model
+allows about 20 requests per day; `EXTRACTION_MODEL` / `ANSWER_MODEL` can split the two LLM calls
+per message across models with separate quotas.
 
 ```bash
 python -m backend.agent.cli --lat 26.91 --lon 75.79 --debug   # --lat/--lon simulate the device
-python evals/run_understanding.py --pause 5                     # real-LLM evals, run manually
+```
+
+## Evals (real LLM, run manually)
+
+```bash
+python evals/run_understanding.py --pause 5            # extraction accuracy per slot
+python evals/run_answers.py --model gemini-2.5-flash   # answers on recorded weather; cached in evals/.cache/
 ```

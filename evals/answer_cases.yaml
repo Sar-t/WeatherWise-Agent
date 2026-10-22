@@ -1,0 +1,136 @@
+# Answer evals: python evals/run_answers.py (real answer LLM, recorded weather; not part of pytest).
+# Extraction is NOT run: each turn gives the understanding it would produce (covered by
+# understanding_cases.yaml). `now` picks the recorded weather: jaipur = Sun 18 Oct 2026 20:17 IST,
+# cities = Thu 22 Oct 2026 11:06 IST (Mumbai and Delhi, recorded the same second).
+# expect.locations: at least one of these must appear in an answer.
+
+- id: weather_hourly_evening
+  now: jaipur
+  turns:
+    - message: Will it rain in Jaipur tomorrow evening?
+      understanding: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: evening}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: weather_today_with_current
+  now: jaipur
+  turns:
+    - message: What's the weather like in Jaipur?
+      understanding: {intent: weather, locations: [Jaipur]}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: weather_daily_next_thursday
+  now: jaipur
+  turns:
+    - message: Will it rain in Jaipur next Thursday?
+      understanding: {intent: weather, locations: [Jaipur], date_expr: next_thursday}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: past_day_summary
+  now: jaipur
+  turns:
+    - message: How hot was it in Jaipur yesterday?
+      understanding: {intent: weather, locations: [Jaipur], date_expr: yesterday}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: past_single_hour
+  now: jaipur
+  turns:
+    - message: What was the weather in Jaipur yesterday around 6 pm?
+      understanding: {intent: weather, locations: [Jaipur], date_expr: yesterday, time_expr: 6pm-7pm}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: hinglish_tomorrow_morning
+  now: jaipur
+  turns:
+    - message: kal subah Jaipur mein baarish hogi?
+      understanding: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: morning}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: activity_suitability_run
+  now: jaipur
+  turns:
+    - message: Is it a good idea to go for a run in Jaipur tomorrow between 6 and 8 am?
+      understanding: {intent: activity_recommendation, activity: running, locations: [Jaipur], date_expr: tomorrow, time_expr: 6-8am, recommendation_type: suitability}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: activity_best_time_cycling
+  now: jaipur
+  turns:
+    - message: When's the best time to go cycling in Jaipur tomorrow?
+      understanding: {intent: activity_recommendation, activity: cycling, locations: [Jaipur], date_expr: tomorrow, recommendation_type: best_time}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: avoid_heat
+  now: jaipur
+  turns:
+    - message: Which hours should I avoid being outdoors in Jaipur tomorrow because of the heat?
+      understanding: {intent: activity_recommendation, locations: [Jaipur], date_expr: tomorrow, recommendation_type: avoid}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: packing_daily
+  now: jaipur
+  turns:
+    - message: What should I pack for a trip to Jaipur next Thursday?
+      understanding: {intent: clothing_recommendation, locations: [Jaipur], date_expr: next_thursday, recommendation_type: packing}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: clothing_tonight_delhi
+  now: cities
+  turns:
+    - message: Do I need a jacket in Delhi tonight?
+      understanding: {intent: clothing_recommendation, locations: [Delhi], date_expr: today, time_expr: night}
+      expect: {kind: answer, locations: [Delhi]}
+
+- id: travel_timing_mumbai
+  now: cities
+  turns:
+    - message: When should I leave Bandra for the airport tomorrow to stay ahead of any rain?
+      understanding: {intent: travel_recommendation, locations: [Bandra], date_expr: tomorrow, recommendation_type: travel_timing}
+      expect: {kind: answer, locations: [Bandra, Mumbai]}
+
+- id: comparison_delhi_mumbai
+  now: cities
+  turns:
+    - message: Which is better for sightseeing tomorrow, Delhi or Mumbai?
+      understanding: {intent: comparison, locations: [Delhi, Mumbai], date_expr: tomorrow}
+      expect: {kind: answer, locations: [Delhi, Mumbai]}
+
+- id: weekend_best_time_daily
+  now: cities
+  turns:
+    - message: Best day for a picnic in Mumbai this weekend?
+      understanding: {intent: activity_recommendation, activity: picnic, locations: [Mumbai], date_expr: this_weekend, recommendation_type: best_time}
+      expect: {kind: answer, locations: [Mumbai, Bandra]}
+
+- id: current_location_evening
+  now: jaipur
+  device: {lat: 26.91, lon: 75.79}
+  turns:
+    - message: Is it going to rain this evening?
+      understanding: {intent: weather, date_expr: today, time_expr: evening}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: follow_up_pair
+  now: cities
+  turns:
+    - message: Mumbai tomorrow morning, rain?
+      understanding: {intent: weather, locations: [Mumbai], date_expr: tomorrow, time_expr: morning}
+      expect: {kind: answer, locations: [Mumbai, Bandra]}
+    - message: and Delhi?
+      understanding: {intent: weather, locations: [Delhi], is_follow_up: true}
+      expect: {kind: answer, locations: [Delhi]}
+
+# No answer-LLM call for these two: they check the routing.
+- id: ambiguous_city_asks
+  now: jaipur
+  turns:
+    - message: Will it rain in Aurangabad tomorrow?
+      understanding: {intent: weather, locations: [Aurangabad], date_expr: tomorrow}
+      expect: {kind: clarification}
+
+- id: out_of_scope_declines
+  now: jaipur
+  turns:
+    - message: Write me a poem about cricket
+      understanding: {intent: out_of_scope}
+      expect: {kind: decline}

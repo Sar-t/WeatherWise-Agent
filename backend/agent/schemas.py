@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from backend.services.date_resolver import DATE_EXPRESSIONS
 from backend.services.geocoding import timezone_at
-from backend.services.models import Location, TimeWindow
+from backend.services.models import Location, TimeWindow, WeatherResult
 
 Intent = Literal[
     "weather",
@@ -117,3 +117,31 @@ class ResolvedQuery(BaseModel):
     time_expr: str | None = None  # after defaults (full_day)
     targets: list[Target] = Field(default_factory=list)
     clarification: Clarification | None = None
+
+
+class ToolCallInfo(BaseModel):
+    """One tool call made while answering, for --debug."""
+
+    name: str
+    args: dict
+    seconds: float
+
+
+class AgentDebug(BaseModel):
+    """What happened during one turn."""
+
+    nodes: list[str] = Field(default_factory=list)
+    tool_calls: list[ToolCallInfo] = Field(default_factory=list)
+    llm_calls: int = 0
+    timings: dict[str, float] = Field(default_factory=dict)  # node -> seconds
+    answer_fallback: bool = False  # the reply was built from a template, not the LLM
+    error: str | None = None  # the real error behind a kind="error" reply
+
+
+class AgentResponse(BaseModel):
+    """The agent's reply to one message."""
+
+    text: str
+    kind: Literal["answer", "clarification", "decline", "error"]
+    cards: list[WeatherResult] = Field(default_factory=list)  # structured data for a frontend
+    debug: AgentDebug = Field(default_factory=AgentDebug)

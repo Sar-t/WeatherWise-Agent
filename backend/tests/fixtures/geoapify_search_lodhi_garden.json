@@ -1,0 +1,267 @@
+{
+  "results": [
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Lodhi Garden",
+      "country": "India",
+      "country_code": "in",
+      "city": "Delhi",
+      "postcode": "110003",
+      "district": "South East Delhi",
+      "suburb": "Defence Colony Tehsil",
+      "street": "Lodhi Road",
+      "iso3166_2": "IN-DL",
+      "lon": 77.2202923,
+      "lat": 28.5903447,
+      "state": "Delhi",
+      "state_code": "DL",
+      "result_type": "amenity",
+      "formatted": "Lodhi Garden, Lodhi Road, Defence Colony Tehsil, Delhi - 110003, India",
+      "address_line1": "Lodhi Garden",
+      "address_line2": "Lodhi Road, Defence Colony Tehsil, Delhi - 110003, India",
+      "category": "public_transport.bus",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JWVH6RC+44",
+      "plus_code_short": "H6RC+44 Delhi, India",
+      "rank": {
+        "importance": 7.748149843590475e-05,
+        "popularity": 4.469576790446189,
+        "confidence": 1,
+        "match_type": "full_match"
+      },
+      "place_id": "51e103e044194e534059efdd8bd420973c40f00103f901c972cc5402000000c0020192030c4c6f6468692047617264656e",
+      "bbox": {
+        "lon1": 77.2202423,
+        "lat1": 28.5902947,
+        "lon2": 77.2203423,
+        "lat2": 28.5903947
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Tomb of Sikandar Lodhi",
+      "other_names": {
+        "name:fa": "آرامگاه سکندر لودی",
+        "name:hi": "सिकंदर लोधी का मकबरा"
+      },
+      "country": "India",
+      "country_code": "in",
+      "city": "New Delhi",
+      "postcode": "110003",
+      "district": "Rabindra Nagar",
+      "suburb": "Chanakya Puri Tehsil",
+      "street": "Rajesh Pilot Marg",
+      "housenumber": "Lodhi Garden",
+      "iso3166_2": "IN-DL",
+      "lon": 77.2215497,
+      "lat": 28.5962998,
+      "result_type": "amenity",
+      "formatted": "Tomb of Sikandar Lodhi, Lodhi Garden, Rajesh Pilot Marg, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "address_line1": "Tomb of Sikandar Lodhi",
+      "address_line2": "Lodhi Garden, Rajesh Pilot Marg, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "category": "tourism.sights.memorial.tomb",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JWVH6WC+GJ",
+      "plus_code_short": "H6WC+GJ New Delhi, India",
+      "rank": {
+        "importance": 0.2328416436185146,
+        "popularity": 4.5763454944130775,
+        "confidence": 0,
+        "match_type": "full_match"
+      },
+      "place_id": "5112fccade2d4e534059819c8b1aa7983c40f00102f9016aba6d1500000000c00201920316546f6d62206f662053696b616e646172204c6f646869",
+      "bbox": {
+        "lon1": 77.2214305,
+        "lat1": 28.5961987,
+        "lon2": 77.2216717,
+        "lat2": 28.596405
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Tomb of Muhammad Shah Sayyid",
+      "other_names": {
+        "name:fa": "آرامگاه محمد شاه سید",
+        "name:hi": "मुहम्मद शाह सैय्यद का मकबरा"
+      },
+      "country": "India",
+      "country_code": "in",
+      "city": "New Delhi",
+      "postcode": "110003",
+      "suburb": "Chanakya Puri Tehsil",
+      "street": "Footpath around tomb",
+      "housenumber": "Lodhi Garden",
+      "iso3166_2": "IN-DL",
+      "lon": 77.2182854,
+      "lat": 28.5910085,
+      "result_type": "amenity",
+      "formatted": "Tomb of Muhammad Shah Sayyid, Lodhi Garden, Footpath around tomb, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "address_line1": "Tomb of Muhammad Shah Sayyid",
+      "address_line2": "Lodhi Garden, Footpath around tomb, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "category": "tourism.sights.memorial.tomb",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JWVH6R9+C8",
+      "plus_code_short": "H6R9+C8 New Delhi, India",
+      "rank": {
+        "importance": 7.748149843590475e-05,
+        "popularity": 4.451022005795954,
+        "confidence": 0,
+        "match_type": "full_match"
+      },
+      "place_id": "516f8c5363f84d534059742843554c973c40f00102f9019d907e0e00000000c0020192031c546f6d62206f66204d7568616d6d6164205368616820536179796964",
+      "bbox": {
+        "lon1": 77.2181581,
+        "lat1": 28.5908967,
+        "lon2": 77.2184126,
+        "lat2": 28.5911203
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Muhammad Shah Sayyid's grave",
+      "other_names": {
+        "name:fa": "قبر محمد شاه سید",
+        "name:hi": "मुहम्मद शाह सैय्यद का कब्र"
+      },
+      "country": "India",
+      "country_code": "in",
+      "city": "New Delhi",
+      "postcode": "110003",
+      "suburb": "Chanakya Puri Tehsil",
+      "street": "Footpath around tomb",
+      "housenumber": "Lodhi Garden",
+      "iso3166_2": "IN-DL",
+      "lon": 77.2183041,
+      "lat": 28.5909401,
+      "result_type": "amenity",
+      "formatted": "Muhammad Shah Sayyid's grave, Lodhi Garden, Footpath around tomb, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "address_line1": "Muhammad Shah Sayyid's grave",
+      "address_line2": "Lodhi Garden, Footpath around tomb, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "category": "tourism.sights.memorial.monument",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JWVH6R9+98",
+      "plus_code_short": "H6R9+98 New Delhi, India",
+      "rank": {
+        "importance": 7.748149843590475e-05,
+        "popularity": 4.451022005795954,
+        "confidence": 0,
+        "match_type": "full_match"
+      },
+      "place_id": "514b85c2b1f84d5340591d65b3d947973c40f00103f901d868151803000000c0020192031c4d7568616d6d61642053686168205361797969642773206772617665",
+      "bbox": {
+        "lon1": 77.2182541,
+        "lat1": 28.5908901,
+        "lon2": 77.2183541,
+        "lat2": 28.5909901
+      }
+    },
+    {
+      "datasource": {
+        "sourcename": "openstreetmap",
+        "attribution": "© OpenStreetMap contributors",
+        "license": "Open Database License",
+        "url": "https://www.openstreetmap.org/copyright"
+      },
+      "name": "Sikandar Lodhi's grave",
+      "other_names": {
+        "name:fa": "قبر سکندر لودی",
+        "name:hi": "सिकंदर लोधी की कब्र"
+      },
+      "country": "India",
+      "country_code": "in",
+      "city": "New Delhi",
+      "postcode": "110003",
+      "district": "Rabindra Nagar",
+      "suburb": "Chanakya Puri Tehsil",
+      "street": "Rajesh Pilot Marg",
+      "housenumber": "Lodhi Garden",
+      "iso3166_2": "IN-DL",
+      "lon": 77.2215535,
+      "lat": 28.5962198,
+      "result_type": "amenity",
+      "formatted": "Sikandar Lodhi's grave, Lodhi Garden, Rajesh Pilot Marg, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "address_line1": "Sikandar Lodhi's grave",
+      "address_line2": "Lodhi Garden, Rajesh Pilot Marg, Chanakya Puri Tehsil, New Delhi - 110003, India",
+      "category": "tourism.sights.memorial.monument",
+      "timezone": {
+        "name": "Asia/Kolkata",
+        "offset_STD": "+05:30",
+        "offset_DST": "+05:30",
+        "offset_STD_seconds": 19800,
+        "offset_DST_seconds": 19800,
+        "abbreviation_STD": "IST",
+        "abbreviation_DST": "IST"
+      },
+      "plus_code": "7JWVH6WC+FJ",
+      "plus_code_short": "H6WC+FJ New Delhi, India",
+      "rank": {
+        "importance": 7.748149843590475e-05,
+        "popularity": 4.5763454944130775,
+        "confidence": 0,
+        "match_type": "full_match"
+      },
+      "place_id": "511e34bbee2d4e534059483a5edca1983c40f00103f901d768151803000000c0020192031653696b616e646172204c6f6468692773206772617665",
+      "bbox": {
+        "lon1": 77.2215035,
+        "lat1": 28.5961698,
+        "lon2": 77.2216035,
+        "lat2": 28.5962698
+      }
+    }
+  ],
+  "query": {
+    "text": "Lodhi Garden"
+  }
+}

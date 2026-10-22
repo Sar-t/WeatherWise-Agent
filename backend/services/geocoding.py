@@ -25,6 +25,8 @@ TIE_MARGIN = 0.1  # confidence/importance this close counts as a tie when rankin
 AMBIGUITY_IMPORTANCE_GAP = 0.25  # rivals within this importance of the best are plausible
 NEAR_DUPLICATE_KM = 5.0
 LOCAL_KM = 50.0  # a candidate this close to the user is "the local one"
+# Result types that name a place (as opposed to a shop, building or street).
+AREA_TYPES = {"city", "suburb", "district", "county", "postcode", "state", "country"}
 
 cache: Cache = InMemoryCache()
 
@@ -52,9 +54,14 @@ async def geocode(
     if (cached := cache.get(key)) is not None:
         return [Location.model_validate(item) for item in cached]
 
-    results = await _search(text, limit, bias)
+    data = await _search(text, limit, bias)
+    results = data.get("results") or []
+    if _is_bare_city_name(data) and not any(r.get("result_type") in AREA_TYPES for r in results):
+        # Geoapify can answer a bare city name with shops named after it ("Delhi" -> "Delhi
+        # Darbar" in Dehradun) or with nothing ("Paris"); a city-only search gets the city.
+        results = (await _search(text, limit, bias, "city")).get("results") or results
     if not results and bias == NO_COUNTRY_BIAS:
-        results = await _search(text, limit, WORLD_BIAS)
+        results = (await _search(text, limit, WORLD_BIAS)).get("results") or []
     if not results:
         raise LocationNotFoundError(f"No place found matching {text!r}.")
 
@@ -110,16 +117,17 @@ def pick_best(
     if not candidates:
         raise LocationNotFoundError("No candidate locations to choose from.")
 
+    # Near-duplicates ("New Delhi" and "Delhi", 2 km apart) count as one place below.
     if near is not None:
         here = Location(name="", lat=near[0], lon=near[1], formatted="", timezone="UTC")
         local = [c for c in candidates if _distance_km(here, c) <= LOCAL_KM]
-        if len(local) == 1:
-            return local[0], False
+        if local and _one_place(local):
+            return _rank_best(local), False
 
     preferred = preferred_country.strip().lower()
     in_preferred = [c for c in candidates if c.country_code == preferred]
-    if len(in_preferred) == 1:
-        return in_preferred[0], False
+    if in_preferred and _one_place(in_preferred):
+        return _rank_best(in_preferred), False
 
     best = _rank_best(candidates)
     return best, bool(alternatives(best, candidates))
@@ -151,10 +159,23 @@ def _api_key() -> str:
     return get_settings().geoapify_api_key.get_secret_value()
 
 
-async def _search(text: str, limit: int, bias: str) -> list[dict[str, Any]]:
+async def _search(text: str, limit: int, bias: str, result_type: str | None = None) -> dict[str, Any]:
+    """Raw Geoapify search response: `results` plus `query.parsed`."""
     params = {"text": text, "limit": limit, "bias": bias, "format": "json", "lang": "en", "apiKey": _api_key()}
-    data = await get_json(PROVIDER, SEARCH_URL, params)
-    return data.get("results") or []
+    if result_type:
+        params["type"] = result_type
+    return await get_json(PROVIDER, SEARCH_URL, params)
+
+
+def _is_bare_city_name(data: dict[str, Any]) -> bool:
+    """Geoapify parsed the text as just a city name (no street, house or other parts)."""
+    parsed = (data.get("query") or {}).get("parsed") or {}
+    return set(parsed) - {"expected_type"} == {"city"}
+
+
+def _one_place(locations: list[Location]) -> bool:
+    """All within NEAR_DUPLICATE_KM of the first, i.e. the same place reported more than once."""
+    return all(_distance_km(locations[0], other) <= NEAR_DUPLICATE_KM for other in locations[1:])
 
 
 def _bias(near: tuple[float, float] | None, country: str | None) -> str:

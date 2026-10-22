@@ -16,7 +16,13 @@ class Settings(BaseSettings):
 
     llm_provider: str = "google_genai"  # any LangChain init_chat_model provider
     llm_model: str = ""  # e.g. a Gemini Flash model; empty -> list what the key can use
-    llm_temperature: float = 0.0
+    # Per-role overrides, so roles can use models with separate free-tier quotas.
+    extraction_model: str = ""  # defaults to llm_model
+    extraction_temperature: float = 0.0
+    extraction_thinking: str = "minimal"  # minimal|low|medium|high, a token budget, or "" for the model default
+    answer_model: str = ""  # defaults to llm_model
+    answer_temperature: float = 0.3
+    answer_thinking: str = "minimal"
     google_api_key: SecretStr = SecretStr("")
 
     langsmith_tracing: bool = False

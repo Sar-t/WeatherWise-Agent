@@ -118,15 +118,60 @@ async def test_bias_is_always_sent(respx_mock, kwargs: dict, bias: str) -> None:
     assert route.calls.last.request.url.params["bias"] == bias
 
 
-async def test_empty_unbiased_search_retries_with_world_bias(respx_mock) -> None:
-    def by_bias(request: httpx.Request) -> httpx.Response:
-        bias = request.url.params["bias"]
-        return ok("geoapify_search_paris_none.json" if bias == "countrycode:none" else "geoapify_search_paris_world.json")
+def by_params(**routes: str):
+    """respx side effect: pick a fixture by request type ("city" or "") and bias."""
 
-    route = respx_mock.get(SEARCH_URL).mock(side_effect=by_bias)
+    def respond(request: httpx.Request) -> httpx.Response:
+        params = request.url.params
+        return ok(routes[f"{params.get('type', '')}|{params['bias']}"])
+
+    return respond
+
+
+async def test_bare_city_with_no_results_retries_as_city(respx_mock) -> None:
+    route = respx_mock.get(SEARCH_URL).mock(side_effect=by_params(**{
+        "|countrycode:none": "geoapify_search_paris_none.json",  # real: Paris -> nothing
+        "city|countrycode:none": "geoapify_search_paris_city.json",
+    }))
     results = await geocode("Paris")
 
-    assert [c.request.url.params["bias"] for c in route.calls] == ["countrycode:none", WORLD_BIAS]
+    sent = [(c.request.url.params.get("type"), c.request.url.params["bias"]) for c in route.calls]
+    assert sent == [(None, "countrycode:none"), ("city", "countrycode:none")]
+    assert results[0].country_code == "fr"
+
+
+async def test_bare_city_answered_with_shops_retries_as_city(respx_mock) -> None:
+    route = respx_mock.get(SEARCH_URL).mock(side_effect=by_params(**{
+        "|countrycode:none": "geoapify_search_delhi.json",  # real: "Delhi Darbar" etc. in Dehradun
+        "city|countrycode:none": "geoapify_search_delhi_city.json",
+    }))
+    results = await geocode("Delhi")
+    assert route.call_count == 2
+    assert [r.name for r in results[:2]] == ["New Delhi", "Delhi"]
+    assert all(r.result_type == "city" for r in results)
+
+
+async def test_landmark_is_not_retried_as_city(respx_mock) -> None:
+    route = respx_mock.get(SEARCH_URL).mock(return_value=ok("geoapify_search_lodhi_garden.json"))
+    [garden, *_] = await geocode("Lodhi Garden")
+    assert route.call_count == 1  # parsed as no city, so the amenity results are the answer
+    assert (garden.name, garden.city, garden.result_type) == ("Lodhi Garden", "Delhi", "amenity")
+
+
+async def test_city_name_with_area_results_is_not_retried(respx_mock) -> None:
+    route = respx_mock.get(SEARCH_URL).mock(return_value=ok("geoapify_search_bandra.json"))
+    await geocode("Bandra")
+    assert route.call_count == 1
+
+
+async def test_world_bias_is_the_last_fallback(respx_mock) -> None:
+    route = respx_mock.get(SEARCH_URL).mock(side_effect=by_params(**{
+        "|countrycode:none": "geoapify_search_paris_none.json",
+        "city|countrycode:none": "geoapify_search_empty.json",
+        f"|{WORLD_BIAS}": "geoapify_search_paris_world.json",
+    }))
+    results = await geocode("Paris")
+    assert [c.request.url.params["bias"] for c in route.calls][-1] == WORLD_BIAS
     assert results[0].country_code == "fr"
 
 
@@ -353,3 +398,15 @@ async def test_pick_best_ignores_near_when_nothing_is_local(respx_mock) -> None:
     aurangabad = await candidates(respx_mock, "geoapify_search_aurangabad.json")
     best, ambiguous = pick_best(aurangabad, near=(26.91, 75.79))  # Jaipur: no Aurangabad within 50 km
     assert (best.state, ambiguous) == ("Maharashtra", True)
+
+
+async def test_pick_best_delhi_is_new_delhi_not_ambiguous(respx_mock) -> None:
+    # New Delhi and Delhi are the same place 2 km apart; Delhi, Iowa must not make it ambiguous.
+    delhi = await candidates(respx_mock, "geoapify_search_delhi_city.json")
+    best, ambiguous = pick_best(delhi)
+    assert (best.name, best.country_code, ambiguous) == ("New Delhi", "in", False)
+
+
+async def test_pick_best_preferred_country_needs_one_distinct_place(respx_mock) -> None:
+    aurangabad = await candidates(respx_mock, "geoapify_search_aurangabad.json")
+    assert pick_best(aurangabad)[1] is True  # five Indian Aurangabads, far apart

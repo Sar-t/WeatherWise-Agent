@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from backend.agent.llm import call_with_backoff, get_llm
+from backend.agent.llm import call_with_backoff, get_llm, message_text
 from backend.agent.schemas import QueryUnderstanding, UserContext
 from backend.services.date_resolver import DATE_EXPRESSIONS, TIME_EXPRESSIONS
 
@@ -62,7 +62,7 @@ async def extract(
     llm: BaseChatModel | None = None,
 ) -> Extraction:
     """One LLM call normally; one retry on invalid output, then intent 'unclear'."""
-    structured = (llm or get_llm()).with_structured_output(QueryUnderstanding, include_raw=True)
+    structured = (llm or get_llm("extraction")).with_structured_output(QueryUnderstanding, include_raw=True)
     messages = [
         SystemMessage(build_system_prompt(ctx)),
         HumanMessage(build_user_message(message, previous, pending_question)),
@@ -87,10 +87,7 @@ def _slots_json(u: QueryUnderstanding) -> str:
 def _raw_text(raw: Any) -> str | None:
     if raw is None:
         return None
-    content = getattr(raw, "content", raw)
     tool_calls = getattr(raw, "tool_calls", None)
     if tool_calls:
         return json.dumps([c.get("args") for c in tool_calls], ensure_ascii=False)
-    if isinstance(content, list):  # newer Gemini models return content blocks
-        return "".join(b.get("text", "") if isinstance(b, dict) else str(b) for b in content)
-    return str(content)
+    return message_text(raw)
