@@ -101,6 +101,25 @@ def check_verdict(reply: str, verdict: str) -> tuple[list[str], list[str]]:
     return failures, warnings
 
 
+def first_sentence(text: str) -> str:
+    """The reply's direct answer (the prompt makes it the first sentence)."""
+    return re.split(r"(?<=[.!?])\s+", text.strip(), maxsplit=1)[0]
+
+
+# Conditional statements that need their line in the observations.
+_UNSUPPORTED = [
+    (re.compile(r"rough (daily )?outlook|daily estimate", re.I), "DAILY ESTIMATE",
+     "calls it a rough outlook / daily estimate, but the observations aren't one"),
+    (re.compile(r"air quality (couldn't|could not|can't|cannot|wasn't|was not) be checked"
+                r"|air quality check nahi", re.I), "AIR QUALITY UNAVAILABLE",
+     "says air quality couldn't be checked, but nothing says so"),
+]
+
+
+def check_unsupported(reply: str, observations: str) -> list[str]:
+    return [why for pattern, needed, why in _UNSUPPORTED if pattern.search(reply) and needed not in observations]
+
+
 def times(text: str) -> set[str]:
     """Clock times as 24h 'HH:MM': '06:30', '6:30 pm' -> '18:30', '6 am' -> '06:00'."""
     out = set()
@@ -266,8 +285,11 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
         failures += [f"{tag}ungrounded reading {f}" for f in grounding.failures]
         warnings += [f"{tag}derived number {w}" for w in grounding.warnings]
         failures += [f"{tag}{f}" for f in check_times(response.text, observations)]
+        failures += [f"{tag}{f}" for f in check_unsupported(response.text, observations)]
         if len(response.assessments) == 1 and not response.debug.answer_fallback:  # comparisons word two verdicts
-            verdict_failures, verdict_warnings = check_verdict(response.text, response.assessments[0].verdict)
+            # Only the direct answer: later sentences may rightly call an avoid window "not suitable".
+            verdict_failures, verdict_warnings = check_verdict(first_sentence(response.text),
+                                                               response.assessments[0].verdict)
             failures += [f"{tag}{f}" for f in verdict_failures]
             warnings += [f"{tag}{w}" for w in verdict_warnings]
     return failures, warnings, replies
