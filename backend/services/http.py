@@ -1,6 +1,7 @@
 """Shared HTTP handling for external APIs (Geoapify, OpenWeather, ...).
 
-Query parameters often carry API keys, so they are never logged or put in error messages.
+Query parameters often carry API keys, so they are never logged or put in error messages: our own
+messages leave the URL out, and anything else raised or logged is passed through redact().
 """
 
 import logging
@@ -12,9 +13,11 @@ from typing import Any
 import certifi
 import httpx
 
+from backend.core.redact import install_log_redaction, redact
 from backend.services.errors import UpstreamAPIError
 
 log = logging.getLogger(__name__)
+install_log_redaction()
 # httpx logs every request URL at INFO, query string (and so API keys) included.
 for _noisy in ("httpx", "httpcore"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
@@ -44,6 +47,8 @@ async def get_json(provider: str, url: str, params: dict[str, Any]) -> Any:
             except httpx.HTTPError as exc:
                 # `from None`: httpx exceptions can include the full URL, API key and all.
                 raise UpstreamAPIError(f"{provider} request failed: {type(exc).__name__}.") from None
+            except Exception as exc:  # e.g. a transport or mock error quoting the URL: same type, redacted
+                raise _redacted(exc) from None
 
             log.info(
                 "upstream response",
@@ -59,6 +64,15 @@ async def get_json(provider: str, url: str, params: dict[str, Any]) -> Any:
                 continue
             return _decode(provider, response)
     raise AssertionError("unreachable")
+
+
+def _redacted(exc: Exception) -> Exception:
+    """A copy of `exc` with API keys masked in its message; the original (and its traceback) is dropped."""
+    message = redact(str(exc))
+    try:
+        return type(exc)(message)
+    except Exception:  # an exception type that can't be rebuilt from a message
+        return RuntimeError(f"{type(exc).__name__}: {message}")
 
 
 @lru_cache(maxsize=1)

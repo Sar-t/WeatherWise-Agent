@@ -116,8 +116,9 @@ def test_weighted_mean_renormalises_over_available_factors() -> None:
 
 def test_worst_factor_caps_the_mean() -> None:
     weights = {"a": 10, "b": 1}
-    assert combine({"a": 100, "b": 20}, weights) == 50  # mean 92.7, capped at worst 20 + 30
-    assert combine({"a": 100, "b": 0.1}, weights) == pytest.approx(30.1)
+    assert combine({"a": 100, "b": 20}, weights) == 40  # mean 92.7, capped at worst 20 + 20
+    assert combine({"a": 100, "b": 0.1}, weights) == pytest.approx(20.1)
+    assert combine({"a": 100, "b": 50}, weights) == 70  # a factor at its acceptable limit: suitable at most just
     assert combine({"a": 100, "b": 0}, weights) == 0  # any factor at 0 zeroes the hour
 
 
@@ -143,6 +144,12 @@ def test_reasons_name_value_and_direction() -> None:
     mild = assess_activity("running", [with_hours(at(6), 2, {0: {"feels_like_c": 29}, 1: {"feels_like_c": 26.5}})],
                            now=NOW)
     assert [h.reasons for h in mild.hourly] == [["feels like 29°C, warm"], []]
+    # At the acceptable limit (running: 5-31 °C), judged on the shown value: "31°C" is warm, "32°C" too hot.
+    edge = assess_activity("running", [with_hours(at(6), 4, {0: {"feels_like_c": 31.4}, 1: {"feels_like_c": 31.5},
+                                                              2: {"feels_like_c": 4.6}, 3: {"feels_like_c": 4.4}})],
+                           now=NOW)
+    assert [h.reasons[0] for h in edge.hourly] == ["feels like 31°C, warm", "feels like 32°C, too hot",
+                                                   "feels like 5°C, cool", "feels like 4°C, too cold"]
     assert assess_activity("running", [with_hours(at(6), 1, {0: {"feels_like_c": 8}})], now=NOW
                            ).hourly[0].reasons == ["feels like 8°C, cool"]
 
