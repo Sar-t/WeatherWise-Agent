@@ -19,7 +19,8 @@ _ORDINALS = {"first": 0, "1st": 0, "second": 1, "2nd": 1, "third": 2, "3rd": 2}
 def merge(previous: QueryUnderstanding, new: QueryUnderstanding) -> QueryUnderstanding:
     """New non-null (and non-empty) slots override the previous ones."""
     merged = previous.model_copy()
-    for field in ("intent", "activity", "date_expr", "time_expr", "recommendation_type", "include_air_quality"):
+    for field in ("intent", "activity", "date_expr", "time_expr", "recommendation_type", "duration_hours",
+                  "include_air_quality"):
         if (value := getattr(new, field)) is not None:
             setattr(merged, field, value)
     if new.locations:

@@ -129,6 +129,23 @@
   message: Is it a good day for a picnic in Lucknow this weekend?
   expected: {is_follow_up: false, intent: activity_recommendation, activity: picnic, locations: [Lucknow], date_expr: this_weekend}
 
+# --- scoring: duration, clothing, travel, best time ----------------------------
+- id: sc_hike_duration
+  message: Planning a 3 hour hike near Lonavala this Saturday, good idea?
+  expected: {intent: activity_recommendation, activity: hiking, locations: [Lonavala], date_expr: next_saturday, recommendation_type: suitability, duration_hours: 3}
+
+- id: sc_drive_duration_hinglish
+  message: kal subah 2 ghante ki drive hai Agra tak, mausam theek rahega?
+  expected: {intent: travel_recommendation, locations: [Agra], date_expr: tomorrow, time_expr: morning, duration_hours: 2}
+
+- id: sc_clothing_evening
+  message: What should I wear in Shimla tomorrow evening?
+  expected: {intent: clothing_recommendation, locations: [Shimla], date_expr: tomorrow, time_expr: evening, recommendation_type: packing, duration_hours: null}
+
+- id: sc_best_time_football
+  message: When's the best time to play football in Bengaluru this weekend?
+  expected: {intent: activity_recommendation, activity: football, locations: [Bengaluru], date_expr: this_weekend, recommendation_type: best_time}
+
 # --- air quality -------------------------------------------------------------
 # include_air_quality is what the LLM sets for a mention; code adds it for some intents
 # after extraction (not checked here). null and false count as the same.

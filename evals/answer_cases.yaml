@@ -159,6 +159,56 @@
       understanding: {intent: air_quality, locations: [Delhi, Paris], date_expr: tomorrow, include_air_quality: true}
       expect: {kind: answer, locations: [Delhi, Paris], mentions: [NAQI]}
 
+# --- scoring engine (step 3e): the reply must keep the engine's verdict and quote its times --------
+- id: sc_best_time_cycling_jaipur
+  now: jaipur
+  turns:
+    - message: When's the best time to cycle in Jaipur tomorrow?
+      understanding: {intent: activity_recommendation, activity: cycling, recommendation_type: best_time, locations: [Jaipur], date_expr: tomorrow}
+      expect: {kind: answer, locations: [Jaipur]}
+
+- id: sc_avoid_heat_mumbai
+  now: cities
+  turns:
+    - message: Which hours should I avoid being outdoors in Mumbai tomorrow?
+      understanding: {intent: activity_recommendation, recommendation_type: avoid, locations: [Mumbai], date_expr: tomorrow}
+      expect: {kind: answer, locations: [Mumbai]}
+
+- id: sc_clothing_mumbai
+  now: cities
+  turns:
+    - message: What should I wear in Mumbai tomorrow?
+      understanding: {intent: clothing_recommendation, recommendation_type: packing, locations: [Mumbai], date_expr: tomorrow}
+      expect: {kind: answer, locations: [Mumbai]}
+
+- id: sc_travel_drive_3h
+  now: cities
+  turns:
+    - message: kal Mumbai tak 3 ghante ki drive hai, kab nikalna theek rahega?
+      understanding: {intent: travel_recommendation, recommendation_type: travel_timing, locations: [Mumbai], date_expr: tomorrow, duration_hours: 3}
+      expect: {kind: answer, locations: [Mumbai]}
+
+- id: sc_compare_run_delhi_mumbai
+  now: cities
+  turns:
+    - message: Delhi or Mumbai, where's better for a run tomorrow morning?
+      understanding: {intent: comparison, activity: running, locations: [Delhi, Mumbai], date_expr: tomorrow, time_expr: morning}
+      expect: {kind: answer, locations: [Delhi, Mumbai]}
+
+- id: sc_picnic_daily_estimate
+  now: jaipur
+  turns:
+    - message: Is Friday good for a picnic in Jaipur?
+      understanding: {intent: activity_recommendation, activity: picnic, recommendation_type: suitability, locations: [Jaipur], date_expr: next_friday}
+      expect: {kind: answer, locations: [Jaipur], mentions: [rough]}
+
+- id: sc_run_jaipur_no_air_quality
+  now: jaipur
+  turns:
+    - message: Is it a good idea to run in Jaipur tomorrow evening?
+      understanding: {intent: activity_recommendation, activity: running, recommendation_type: suitability, locations: [Jaipur], date_expr: tomorrow, time_expr: evening}
+      expect: {kind: answer, locations: [Jaipur], mentions: [air quality]}
+
 # No answer-LLM call for these two: they check the routing.
 - id: ambiguous_city_asks
   now: jaipur

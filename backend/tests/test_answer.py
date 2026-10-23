@@ -105,6 +105,19 @@ def test_air_quality_cards_count_towards_a_comparison() -> None:
     assert is_comparison([], [jaipur_air, paris_air])  # an air-quality-only comparison keeps its bullets
 
 
+def test_template_leads_with_the_engines_verdict_and_best_time() -> None:
+    from backend.tests.test_observations import an_assessment
+
+    a = an_assessment()
+    daily = a.model_copy(update={"is_daily_estimate": True, "best_blocks": []})
+    text = template_answer([], [], [a, daily])
+    assert text.splitlines() == [
+        f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: suitable ({a.score}/100); best time Fri 06:00-07:00.",
+        f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: suitable ({a.score}/100). "
+        "This is a rough outlook; check again closer to the date.",
+    ]
+
+
 def test_template_air_quality_lines() -> None:
     from backend.tests.test_observations import air_result
 
@@ -157,4 +170,4 @@ def test_template_past_and_daily() -> None:
 
     day = DailyWeather(date=date(2026, 10, 22), temp_min_c=21.4, temp_max_c=30.6, rain_prob=0.26, rain_mm=0.35)
     text = template_answer([card("daily", daily=[day])])
-    assert text.endswith(": expected Thu 22 Oct 21-31°C, rain chance 26%, 0.3 mm rain.")
+    assert text.endswith(": expected Thu 22 Oct 21-31°C, rain chance 25%, 0.3 mm rain.")

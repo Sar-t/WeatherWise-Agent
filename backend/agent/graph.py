@@ -1,4 +1,5 @@
-"""The agent as a LangGraph flow: understand -> resolve -> route -> fetch -> answer | ask | decline.
+"""The agent as a LangGraph flow:
+understand -> resolve -> route -> fetch -> [assess -> guidelines] -> answer | ask | decline.
 
 Two LLM calls per answered message (understand, answer); everything else is deterministic.
 Conversation memory lives in graph state, saved per thread_id by the checkpointer.
@@ -26,7 +27,8 @@ from backend.agent.extraction import extract
 from backend.agent.llm import LLMConfigError, LLMRateLimitError, LLMUnavailableError
 from backend.agent.memory import Extractor, MemoryState, Turn, record, understand
 from backend.agent.resolution import resolve_query
-from backend.agent.observations import air_unavailable
+from backend.agent.assess import assess_place, guideline_topics, should_assess
+from backend.agent.observations import air_unavailable, summarize_assessment
 from backend.agent.schemas import (
     AgentDebug,
     AgentResponse,
@@ -46,6 +48,8 @@ from backend.agent.tools import (
 from backend.services import models
 from backend.services.errors import OutOfRangeError, UpstreamAPIError, WeatherWiseError
 from backend.services.models import AirQualityResult, WeatherResult
+from backend.services.scoring import models as scoring_models
+from backend.services.scoring.models import ActivityAssessment
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +73,8 @@ _STATE_TYPES = [
 ] + [(models.__name__, name) for name in ("Location", "TimeWindow", "WeatherResult", "WeatherPoint",
                                           "DailyWeather", "WeatherAlert", "SunTimes", "AirQualityResult",
                                           "AirQualityPoint", "AirComponents", "AirQualitySummary")
+       ] + [(scoring_models.__name__, name) for name in ("ActivityAssessment", "HourAssessment", "FactorScore",
+                                                         "TimeBlock")
        ] + [("backend.agent.memory", "MemoryState")]
 
 
@@ -80,6 +86,10 @@ class AgentState(TypedDict, total=False):
     resolved: ResolvedQuery
     cards: list[WeatherResult]
     air_cards: list[AirQualityResult]
+    # Per place, for scoring: its weather results, and its air quality (None: not fetched, []: failed).
+    places: list[tuple[list[WeatherResult], list[AirQualityResult] | None]]
+    assessments: list[ActivityAssessment]
+    guideline_topics: list[str]  # for the guidelines step (step 3f)
     observations: list[str]
     response: AgentResponse | None
     debug: AgentDebug
@@ -139,31 +149,61 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
             response = _error_response(exc, debug)
             return {"response": response.model_copy(update={"text": AIR_OUT_OF_RANGE_TEXT})}
 
-        observations, cards, air_cards = [], [], []
+        observations, cards, air_cards, places = [], [], [], []
         for weather_messages, air in per_target:
+            place_weather, place_air = [], None
             for message in weather_messages:
                 observations.append(message.content)
-                cards += message.artifact if isinstance(message.artifact, list) else [message.artifact]
+                place_weather += message.artifact if isinstance(message.artifact, list) else [message.artifact]
             if isinstance(air, str):
                 observations.append(air)
+                place_air = []  # asked for, but unavailable
             elif air is not None:
                 observations.append(air.content)
-                air_cards += air.artifact
-        return {"observations": observations, "cards": cards, "air_cards": air_cards, "debug": debug}
+                place_air = air.artifact
+            cards += place_weather
+            air_cards += place_air or []
+            places.append((place_weather, place_air))
+        return {"observations": observations, "cards": cards, "air_cards": air_cards, "places": places,
+                "debug": debug}
+
+    async def assess_node(state: AgentState, config: RunnableConfig) -> dict:
+        """Score the activity for each place with the scoring engine; its verdict leads the observations."""
+        u, now = state["resolved"].understanding, _ctx(config).now
+        assessments = []
+        for weather_results, air_results in state.get("places") or []:
+            try:
+                assessment = assess_place(u, weather_results, air_results, now)
+            except Exception:  # never lose the weather answer over a scoring problem
+                log.exception("assessment failed")
+                continue
+            if assessment is not None:
+                assessments.append(assessment)
+        summaries = [summarize_assessment(a, u.recommendation_type, u.intent) for a in assessments]
+        return {"assessments": assessments, "observations": summaries + state["observations"]}
+
+    async def guidelines_node(state: AgentState, config: RunnableConfig) -> dict:
+        """GUIDELINES HOOK (no-op until step 3f): derives the topics to look up; retrieves nothing yet.
+
+        3f: retrieve guidelines for `topics` (and the activity) here and add them to the observations.
+        """
+        alerts = [a for card in state.get("cards") or [] for a in card.alerts]
+        return {"guideline_topics": guideline_topics(state.get("assessments") or [], alerts)}
 
     async def answer_node(state: AgentState, config: RunnableConfig) -> dict:
         debug = state["debug"]
         ctx = _ctx(config)
         now = (ctx.now or datetime.now(ZoneInfo(ctx.timezone))).astimezone(ZoneInfo(ctx.timezone))
-        air_cards = state.get("air_cards") or []
+        air_cards, assessments = state.get("air_cards") or [], state.get("assessments") or []
         answer = await generate_answer(state["message"], state["understanding"], state["observations"],
-                                       state["cards"], llm=answer_llm, now=now, air_cards=air_cards)
+                                       state["cards"], llm=answer_llm, now=now, air_cards=air_cards,
+                                       assessments=assessments)
         debug.llm_calls += 1
         debug.answer_fallback = answer.fallback
         if answer.error:
             debug.error = answer.error
         return {"response": AgentResponse(text=answer.text, kind="answer", cards=state["cards"],
-                                          air_quality=air_cards, debug=debug)}
+                                          air_quality=air_cards, assessments=assessments, debug=debug)}
 
     async def ask_node(state: AgentState, config: RunnableConfig) -> dict:
         return {"response": AgentResponse(text=state["resolved"].clarification.question, kind="clarification",
@@ -174,12 +214,15 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
 
     graph = StateGraph(AgentState)
     for name, node in [("understand", understand_node), ("resolve", resolve_node), ("fetch", fetch_node),
-                       ("answer", answer_node), ("ask", ask_node), ("decline", decline_node)]:
+                       ("assess", assess_node), ("guidelines", guidelines_node), ("answer", answer_node),
+                       ("ask", ask_node), ("decline", decline_node)]:
         graph.add_node(name, _tracked(name, node))
     graph.add_edge(START, "understand")
     graph.add_conditional_edges("understand", _stop_on_error("resolve"))
     graph.add_conditional_edges("resolve", _route)
-    graph.add_conditional_edges("fetch", _stop_on_error("answer"))
+    graph.add_conditional_edges("fetch", _after_fetch)
+    graph.add_conditional_edges("assess", _stop_on_error("guidelines"))
+    graph.add_conditional_edges("guidelines", _stop_on_error("answer"))
     for name in ("answer", "ask", "decline"):
         graph.add_edge(name, END)
     checkpointer = checkpointer or MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=_STATE_TYPES))
@@ -197,7 +240,7 @@ class Agent:
     async def ask(self, message: str) -> AgentResponse:
         started = time.perf_counter()
         turn_input = {"message": message, "response": None, "debug": AgentDebug(), "cards": [], "air_cards": [],
-                      "observations": []}
+                      "places": [], "assessments": [], "guideline_topics": [], "observations": []}
         config = {"configurable": {"thread_id": self.thread_id, "ctx": self.ctx}}
         state = await self.graph.ainvoke(turn_input, config)
         response = state["response"]
@@ -221,6 +264,12 @@ def _route(state: AgentState) -> str:
     if state.get("response") is not None:
         return END
     return {"clarify": "ask", "out_of_scope": "decline", "ready": "fetch"}[state["resolved"].status]
+
+
+def _after_fetch(state: AgentState) -> str:
+    if state.get("response") is not None:
+        return END
+    return "assess" if should_assess(state["resolved"].understanding) else "answer"
 
 
 def _stop_on_error(next_node: str) -> Callable[[AgentState], str]:

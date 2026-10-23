@@ -226,6 +226,79 @@ def test_long_air_observation_is_sampled_under_the_cap() -> None:
     assert len(text) <= AIR_MAX_CHARS and "Summary of 72 hours: worst NAQI 221" in text
 
 
+# --- activity assessments ---------------------------------------------------------
+
+
+def an_assessment(activity: str = "running", **kw):
+    from backend.services.scoring import assess_activity
+    from backend.tests.test_scoring import NOW as SCORING_NOW, at, with_hours
+
+    hot, storm = {"feels_like_c": 33}, {"condition": "Thunderstorm", "description": "thunderstorm"}
+    return assess_activity(activity, [with_hours(at(6), 6, {1: hot, 4: storm, 5: hot})], now=SCORING_NOW, **kw)
+
+
+def section_starts(text: str) -> list[str]:
+    return [line.split(":")[0] for line in text.splitlines()[2:]]
+
+
+@pytest.mark.parametrize("kind, first", [
+    ("suitability", "Main reasons"), ("best_time", "- Best time"), ("avoid", "- Avoid"),
+    ("travel_timing", "- Best time"),
+])
+def test_assessment_sections_follow_the_recommendation_type(kind: str, first: str) -> None:
+    from backend.agent.observations import summarize_assessment
+
+    text = summarize_assessment(an_assessment(), kind)
+    assert section_starts(text)[0] == first
+
+
+def test_assessment_header_verdict_and_blocks() -> None:
+    from backend.agent.observations import summarize_assessment
+
+    a = an_assessment()
+    lines = summarize_assessment(a, "best_time").splitlines()
+    assert lines[0] == "New Delhi | ACTIVITY ASSESSMENT (running) | Fri 23 Oct, 06:00-12:00 IST"
+    assert lines[1] == f"VERDICT (from the scoring engine; explain it, don't change it): suitable, score {a.score}/100"
+    assert lines[2] == "- Best time: Fri 06:00-07:00, score 100 (suitable)"
+    assert "- Avoid: Fri 10:00-11:00, score 0 (not suitable): thunderstorm" in lines
+
+
+def test_packing_leads_with_hints_and_clothing_defaults_to_it() -> None:
+    from backend.agent.observations import summarize_assessment
+
+    a = an_assessment("walking", hints_from="window")
+    a = a.model_copy(update={"hints": ["Carry an umbrella or a rain jacket."]})
+    assert section_starts(summarize_assessment(a, "packing"))[0] == "Hints"
+    assert section_starts(summarize_assessment(a, None, intent="clothing_recommendation"))[0] == "Hints"
+    assert section_starts(summarize_assessment(a, None, intent="travel_recommendation"))[0] == "- Best time"
+    assert section_starts(summarize_assessment(a, None))[0] == "Main reasons"
+
+
+def test_daily_estimate_is_flagged_and_parts_are_named() -> None:
+    from datetime import date
+
+    from backend.agent.observations import summarize_assessment
+    from backend.services.scoring import assess_activity
+    from backend.tests.test_scoring import NOW as SCORING_NOW, daily_result
+
+    window = TimeWindow(start=ist(26), end=ist(27))
+    a = assess_activity("picnic", [daily_result(date(2026, 10, 26), window)], now=SCORING_NOW)
+    lines = summarize_assessment(a, "best_time").splitlines()
+    assert lines[1] == "DAILY ESTIMATE: rough outlook from daily forecasts, lower confidence"
+    assert lines[3].startswith("- Best time: Mon 06:00-12:00 (morning), score")
+    assert any(line.startswith("Data note: Daily estimate") for line in lines)
+
+
+def test_assessment_cap_drops_data_notes_first() -> None:
+    from backend.agent.observations import summarize_assessment
+
+    a = an_assessment().model_copy(update={"data_quality": [f"note {i} " + "x" * 80 for i in range(30)]})
+    full = summarize_assessment(a, "suitability", max_chars=100_000)
+    capped = summarize_assessment(a, "suitability", max_chars=600)
+    assert len(capped) <= 600 < len(full)
+    assert "VERDICT" in capped and "Main reasons" in capped and "- Best time" in capped
+
+
 def test_air_unavailable_note() -> None:
     from backend.agent.observations import air_unavailable
 

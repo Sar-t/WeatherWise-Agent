@@ -22,6 +22,8 @@ Today is $weekday, $today (timezone $timezone).
   or an explicit clock range such as "7-9am", "6pm-8pm" or "07:00-09:00"; null if no time is mentioned.
 - recommendation_type: suitability ("is it good for", "can I"), best_time ("when should I"),
   avoid ("what should I avoid"), packing ("what to pack/wear"), travel_timing ("when to leave"), else null.
+- duration_hours: how long the activity or trip lasts, in whole hours, only if stated ("a 3 hour hike"
+  -> 3, "2 ghante ki drive" -> 2, "half-day trek" -> 4); else null.
 - include_air_quality: true when the message mentions air quality, pollution, smog, haze, AQI, masks or
   breathing, whatever the intent ("is it safe to run, the smog is bad"); else null.
 - is_follow_up: true when a previous query is given and this message only changes or answers part of it.
@@ -66,6 +68,9 @@ User: What should I pack for Shimla next Friday?
 
 User: Should I leave for Pune tmrw morning or wait till afternoon?
 {"intent": "travel_recommendation", "locations": ["Pune"], "date_expr": "tomorrow", "recommendation_type": "travel_timing"}
+
+User: kal 3 ghante ki drive hai Nashik tak, kab nikalna theek rahega?
+{"intent": "travel_recommendation", "locations": ["Nashik"], "date_expr": "tomorrow", "recommendation_type": "travel_timing", "duration_hours": 3}
 
 User: Delhi mein aaj pollution kaisa hai?
 {"intent": "air_quality", "locations": ["Delhi"], "date_expr": "today", "include_air_quality": true}

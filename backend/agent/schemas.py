@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 from backend.services.date_resolver import DATE_EXPRESSIONS
 from backend.services.geocoding import timezone_at
 from backend.services.models import AirQualityResult, Location, TimeWindow, WeatherResult
+from backend.services.scoring.models import ActivityAssessment
 
 Intent = Literal[
     "weather",
@@ -47,6 +48,11 @@ class QueryUnderstanding(BaseModel):
     )
     recommendation_type: RecommendationType | None = Field(
         default=None, description="Kind of recommendation wanted, if any."
+    )
+    duration_hours: int | None = Field(
+        default=None, ge=1, le=24,
+        description="How long the activity or trip lasts in whole hours, if stated ('a 3 hour hike', "
+        "'2 ghante ki drive'); else null.",
     )
     include_air_quality: bool | None = Field(
         default=None,
@@ -157,4 +163,5 @@ class AgentResponse(BaseModel):
     kind: Literal["answer", "clarification", "decline", "error"]
     cards: list[WeatherResult] = Field(default_factory=list)  # structured data for a frontend
     air_quality: list[AirQualityResult] = Field(default_factory=list)  # air quality cards, when fetched
+    assessments: list[ActivityAssessment] = Field(default_factory=list)  # scoring results, one per place
     debug: AgentDebug = Field(default_factory=AgentDebug)

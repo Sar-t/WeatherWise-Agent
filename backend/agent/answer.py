@@ -12,7 +12,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from backend.agent.llm import call_with_backoff, invoke, message_text
 from backend.agent.observations import OWM_AQI_NAMES, hourly_stats, place_name, window_text
 from backend.agent.schemas import QueryUnderstanding
+from backend.services.display import celsius, chance, kmh, whole
 from backend.services.models import AirQualityResult, WeatherResult
+from backend.services.scoring.models import ActivityAssessment
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +58,7 @@ async def generate_answer(
     llm: Any = None,
     now: datetime | None = None,
     air_cards: list[AirQualityResult] = (),
+    assessments: list[ActivityAssessment] = (),
 ) -> Answer:
     """LLM reply grounded in `observations`; if the LLM fails, a template reply from the cards."""
     messages = build_messages(message, understanding, observations, now)
@@ -72,7 +75,8 @@ async def generate_answer(
         return Answer(text, fallback=False)
     except Exception as exc:  # any LLM failure: the user still gets the key numbers
         log.warning("answer llm failed, using template", extra={"error": f"{type(exc).__name__}: {exc}"})
-        return Answer(template_answer(cards, air_cards), fallback=True, error=f"{type(exc).__name__}: {exc}")
+        return Answer(template_answer(cards, air_cards, assessments), fallback=True,
+                      error=f"{type(exc).__name__}: {exc}")
 
 
 def is_comparison(cards: list[WeatherResult], air_cards: list[AirQualityResult] = ()) -> bool:
@@ -107,16 +111,33 @@ def flatten_bullets(text: str) -> str:
     return "\n\n".join(" ".join(p) for p in paragraphs if p)
 
 
-def template_answer(cards: list[WeatherResult], air_cards: list[AirQualityResult] = ()) -> str:
-    """A plain reply built in code from the same data the LLM would have seen."""
+def template_answer(cards: list[WeatherResult], air_cards: list[AirQualityResult] = (),
+                    assessments: list[ActivityAssessment] = ()) -> str:
+    """A plain reply built in code from the same data the LLM would have seen: alerts, the engine's
+    verdicts and best times, then the weather and air quality."""
     alerts = [a for card in cards for a in card.alerts]
     lines = [f"Weather alert: {a.event} ({a.sender}), {a.start:%a %H:%M} to {a.end:%a %H:%M}." for a in
              {(a.event, a.start): a for a in alerts}.values()]
+    lines += [_assessment_line(a) for a in assessments]
     for card in cards:
         lines.append(_card_line(card))
     for card in air_cards:
         lines.append(_air_line(card))
     return "\n".join(lines)
+
+
+def _assessment_line(a: ActivityAssessment) -> str:
+    """'Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: suitable (86/100); best time Fri 06:30-07:30.'"""
+    activity = a.profile.replace("_", " ")
+    windows = "; ".join(window_text(w) for w in a.windows)
+    line = f"{activity.capitalize()} in {place_name(a.location)}, {windows}: {a.verdict.replace('_', ' ')} ({a.score}/100)"
+    if a.best_blocks:
+        b = a.best_blocks[0]
+        line += f"; best time {b.start:%a %H:%M}-{b.end:%H:%M}"
+    line += "."
+    if a.is_daily_estimate:
+        line += " This is a rough outlook; check again closer to the date."
+    return line
 
 
 def _air_line(card: AirQualityResult) -> str:
@@ -134,19 +155,20 @@ def _card_line(card: WeatherResult) -> str:
     where = f"{place_name(card.location)}, {window_text(card.window)}"
     if card.granularity == "current" and card.hourly:
         p = card.hourly[0]
-        return f"{place_name(card.location)} now: {p.temp_c:.0f}°C (feels {p.feels_like_c:.0f}°C), wind {p.wind_kmh:.0f} km/h."
+        return (f"{place_name(card.location)} now: {celsius(p.temp_c)} (feels {celsius(p.feels_like_c)}), "
+                f"wind {kmh(p.wind_kmh)}.")
     past = card.granularity == "historical"
     if card.hourly:
         s = hourly_stats(card.hourly)
-        rain = f", rain chance up to {s.rain_prob_max * 100:.0f}%" if s.rain_prob_max is not None else ""
+        rain = f", rain chance up to {chance(s.rain_prob_max)}" if s.rain_prob_max is not None else ""
         verb = "was" if past else "expected"
-        return (f"{where}: {verb} {s.temp_min:.0f}-{s.temp_max:.0f}°C{rain}, {s.rain_total_mm:.1f} mm rain, "
-                f"wind up to {s.wind_max:.0f} km/h.")
+        return (f"{where}: {verb} {whole(s.temp_min)}-{celsius(s.temp_max)}{rain}, {s.rain_total_mm:.1f} mm rain, "
+                f"wind up to {kmh(s.wind_max)}.")
     if card.daily:
         days = []
         for d in card.daily:
-            rain = f", rain chance {d.rain_prob * 100:.0f}%" if d.rain_prob is not None else ""
+            rain = f", rain chance {chance(d.rain_prob)}" if d.rain_prob is not None else ""
             mm = f", {d.rain_mm:.1f} mm rain" if d.rain_mm is not None else ""
-            days.append(f"{d.date:%a %d %b} {d.temp_min_c:.0f}-{d.temp_max_c:.0f}°C{rain}{mm}")
+            days.append(f"{d.date:%a %d %b} {whole(d.temp_min_c)}-{celsius(d.temp_max_c)}{rain}{mm}")
         return f"{where}: {'observed' if past else 'expected'} " + "; ".join(days) + "."
     return f"{where}: no data available."

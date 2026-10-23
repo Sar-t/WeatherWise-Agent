@@ -55,6 +55,12 @@ def test_merge_overrides_only_new_non_null_slots() -> None:
     assert merged.is_follow_up
 
 
+def test_merge_keeps_and_overrides_duration() -> None:
+    old = QueryUnderstanding(intent="travel_recommendation", locations=["Pune"], duration_hours=3)
+    assert merge(old, weather(date_expr="tomorrow", is_follow_up=True)).duration_hours == 3
+    assert merge(old, weather(duration_hours=5, is_follow_up=True)).duration_hours == 5
+
+
 def test_merge_replaces_locations() -> None:
     merged = merge(weather(locations=["Jaipur"], date_expr="tomorrow"), weather(locations=["Delhi"], is_follow_up=True))
     assert (merged.locations, merged.date_expr) == (["Delhi"], "tomorrow")

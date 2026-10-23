@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -15,7 +16,8 @@ from backend.agent.graph import (
     build_graph,
 )
 from backend.agent.llm import LLMRateLimitError
-from backend.agent.schemas import QueryUnderstanding, UserContext
+from backend.agent.schemas import AgentDebug, QueryUnderstanding, UserContext
+from backend.core.config import get_settings
 from backend.services import air_quality, weather
 from backend.services.cache import InMemoryCache
 from backend.services.weather import ONECALL_URL
@@ -45,14 +47,21 @@ def anyio_backend() -> str:
 
 
 @pytest.fixture(autouse=True)
-def _offline(monkeypatch: pytest.MonkeyPatch) -> None:
+def _offline(monkeypatch: pytest.MonkeyPatch, respx_mock) -> None:
+    """Fake geocoding and key; recorded air quality (Delhi/Paris; elsewhere 503) for every test."""
     install_fake_geocoding(monkeypatch)
+    monkeypatch.setenv("OPENWEATHER_API_KEY", "test-ow-key")
+    get_settings.cache_clear()
     monkeypatch.setattr(weather, "cache", InMemoryCache())
+    monkeypatch.setattr(air_quality, "cache", InMemoryCache())
+    mock_air_quality(respx_mock)
 
     async def no_sleep(delay: float) -> None:
         return None
 
     monkeypatch.setattr(llm, "_sleep", no_sleep)
+    yield
+    get_settings.cache_clear()
 
 
 def make_agent(*understandings, answer: RecordingChatModel | None = None, now=JAIPUR_NOW, **ctx) -> tuple:
@@ -283,10 +292,8 @@ AQ_NOW = fixture_now("delhi_aq")  # Thu 22 Oct 2026 12:00 IST, recorded with the
 
 
 @pytest.fixture
-def aq_world(respx_mock, monkeypatch: pytest.MonkeyPatch):
-    """Recorded weather + air quality for Delhi and Paris (Jaipur has no air quality recording: 503)."""
-    monkeypatch.setattr(air_quality, "cache", InMemoryCache())
-    mock_air_quality(respx_mock)
+def aq_world(respx_mock):
+    """Weather recorded alongside the air quality fixtures for Delhi and Paris."""
     return mock_onecall(respx_mock, by_lat=ONECALL_BY_LAT_AQ)
 
 
@@ -406,3 +413,172 @@ async def test_answer_failure_template_includes_air_quality(aq_world) -> None:
     assert response.debug.answer_fallback
     assert (f"New Delhi air quality, Fri 23 Oct, 06:00-12:00 IST: NAQI up to {s.naqi_max} ({s.naqi_category}, "
             f"mainly {s.dominant_pollutant}).") in response.text
+
+
+# --- activity assessments (scoring engine) ---------------------------------------------
+
+
+def prompt_of(answer: RecordingChatModel, turn: int = 0) -> str:
+    return answer.calls[turn][-1].content
+
+
+def assessment_text(prompt: str) -> str:
+    """The first ACTIVITY ASSESSMENT block in the answer prompt."""
+    start = prompt.index("| ACTIVITY ASSESSMENT")
+    start = prompt.rindex("\n", 0, start) + 1
+    return prompt[start:].split("\n\n")[0]
+
+
+async def test_suitability_runs_the_engine_and_passes_its_verdict_unchanged(aq_world) -> None:
+    agent, _, answer = make_agent(run_q(recommendation_type="suitability"), now=AQ_NOW)
+    response = await agent.ask("Is it ok to run in Delhi tomorrow morning?")
+
+    assert response.debug.nodes == ["understand", "resolve", "fetch", "assess", "guidelines", "answer"]
+    [a] = response.assessments
+    assert (a.profile, a.location.name, a.windows) == ("running", "New Delhi", [response.cards[0].window])
+    text = assessment_text(prompt_of(answer))
+    lines = text.splitlines()
+    assert lines[0] == "New Delhi | ACTIVITY ASSESSMENT (running) | Fri 23 Oct, 06:00-12:00 IST"
+    assert lines[1] == (f"VERDICT (from the scoring engine; explain it, don't change it): "
+                        f"{a.verdict.replace('_', ' ')}, score {a.score}/100")
+    assert lines[2].startswith("Main reasons:")  # suitability: reasons right after the verdict
+    assert prompt_of(answer).index("ACTIVITY ASSESSMENT") < prompt_of(answer).index("| FORECAST, hourly")
+    assert response.air_quality and not any("Air quality" in n for n in a.data_quality)  # air quality scored
+    assert response.debug.llm_calls == 2  # scoring adds no LLM call
+
+
+async def test_best_time_lists_best_blocks_first_in_local_time(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, answer = make_agent(q(intent="activity_recommendation", activity="cycling", locations=["Jaipur"],
+                                    date_expr="tomorrow", recommendation_type="best_time"))
+    response = await agent.ask("When should I cycle in Jaipur tomorrow?")
+
+    [a] = response.assessments
+    lines = assessment_text(prompt_of(answer)).splitlines()
+    best = a.best_blocks[0]
+    assert lines[2].startswith(f"- Best time: {best.start:%a %H:%M}-{best.end:%H:%M}, score {best.average_score}")
+    assert best.end - best.start == timedelta(hours=2)  # cycling: 2 h blocks
+    assert best.start.tzinfo.key == "Asia/Kolkata"
+
+
+async def test_avoid_lists_avoid_blocks_first(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, answer = make_agent(q(intent="activity_recommendation", locations=["Mumbai"], date_expr="tomorrow",
+                                    recommendation_type="avoid"), now=CITIES_NOW)
+    response = await agent.ask("What times should I avoid being outside in Mumbai tomorrow?")
+
+    [a] = response.assessments
+    assert a.profile == "general_outdoor" and a.avoid_blocks  # no activity named; Mumbai feels like 42°C
+    lines = assessment_text(prompt_of(answer)).splitlines()
+    worst = a.avoid_blocks[0]
+    assert lines[2].startswith(f"- Avoid: {worst.start:%a %H:%M}-{worst.end:%H:%M}")
+    assert "too hot" in lines[2]
+
+
+async def test_clothing_uses_general_outdoor_and_leads_with_hints(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, answer = make_agent(q(intent="clothing_recommendation", locations=["Mumbai"], date_expr="tomorrow",
+                                    recommendation_type="packing"), now=CITIES_NOW)
+    response = await agent.ask("What should I wear in Mumbai tomorrow?")
+
+    [a] = response.assessments
+    assert a.profile == "general_outdoor" and not any("No profile" in n for n in a.data_quality)
+    lines = assessment_text(prompt_of(answer)).splitlines()
+    assert lines[2] == f"Hints: {' '.join(a.hints)}"
+    assert "breathable" in lines[2]
+    assert response.air_quality == []  # clothing questions don't fetch air quality
+
+
+async def test_travel_uses_the_travel_profile_and_trip_duration(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, answer = make_agent(q(intent="travel_recommendation", locations=["Mumbai"], date_expr="tomorrow",
+                                    recommendation_type="travel_timing", duration_hours=3), now=CITIES_NOW)
+    response = await agent.ask("kal 3 ghante ki drive hai Mumbai tak, kab nikalun?")
+
+    [a] = response.assessments
+    assert a.profile == "travel"
+    assert all(b.end - b.start == timedelta(hours=3) for b in a.best_blocks)
+    lines = assessment_text(prompt_of(answer)).splitlines()
+    assert lines[2].startswith("- Best time:")  # travel_timing: best, then avoid
+    assert "AIR QUALITY UNAVAILABLE" in prompt_of(answer)  # travel asks for air quality; no Mumbai recording
+
+
+async def test_comparison_with_an_activity_assesses_each_city(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, answer = make_agent(q(intent="comparison", activity="running", locations=["Delhi", "Mumbai"],
+                                    date_expr="tomorrow", time_expr="morning"), now=CITIES_NOW)
+    response = await agent.ask("Delhi or Mumbai for a run tomorrow morning?")
+
+    assert [a.location.name for a in response.assessments] == ["New Delhi", "Bandra West"]
+    assert prompt_of(answer).count("| ACTIVITY ASSESSMENT (running)") == 2
+    delhi, mumbai = response.assessments
+    assert delhi.score > mumbai.score  # Mumbai feels hotter
+
+
+async def test_comparison_without_an_activity_is_not_assessed(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, _ = make_agent(q(intent="comparison", locations=["Delhi", "Mumbai"], date_expr="tomorrow"),
+                             now=CITIES_NOW)
+    response = await agent.ask("Delhi or Mumbai tomorrow?")
+    assert response.assessments == [] and "assess" not in response.debug.nodes
+
+
+async def test_five_days_ahead_is_a_daily_estimate(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, answer = make_agent(q(intent="activity_recommendation", activity="picnic", locations=["Jaipur"],
+                                    date_expr="next_friday"))  # Sun 18 Oct -> Fri 23 Oct
+    response = await agent.ask("Picnic in Jaipur on Friday?")
+
+    [a] = response.assessments
+    assert a.is_daily_estimate and a.confidence == "low"
+    assert [h.part_of_day for h in a.hourly] == ["morning", "afternoon", "evening", "night"]
+    text = assessment_text(prompt_of(answer))
+    assert text.splitlines()[1] == "DAILY ESTIMATE: rough outlook from daily forecasts, lower confidence"
+    assert "(morning)" in text or "(afternoon)" in text  # best times are parts of the day
+
+
+async def test_missing_air_quality_still_assesses_with_a_note(aq_world) -> None:
+    agent, _, answer = make_agent(run_q(locations=["Jaipur"]), now=JAIPUR_NOW)  # Jaipur air quality: 503
+    response = await agent.ask("Can I run in Jaipur tomorrow morning?")
+
+    [a] = response.assessments
+    assert "Air quality unavailable; not scored." in a.data_quality
+    assert "Data note: Air quality unavailable; not scored." in assessment_text(prompt_of(answer))
+
+
+async def test_assessment_failure_does_not_block_the_answer(aq_world, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.agent import assess
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("scoring bug")
+
+    monkeypatch.setattr(assess, "assess_activity", broken)
+    agent, _, _ = make_agent(run_q(), now=AQ_NOW)
+    response = await agent.ask("Is it ok to run in Delhi tomorrow morning?")
+    assert response.kind == "answer" and response.assessments == [] and response.cards
+
+
+async def test_template_fallback_leads_with_verdict_and_best_time(aq_world) -> None:
+    failing = RecordingChatModel(replies=[ModelRateLimitError("429 RESOURCE_EXHAUSTED")] * 4)
+    agent, _, _ = make_agent(run_q(), answer=failing, now=AQ_NOW)
+    response = await agent.ask("Is it ok to run in Delhi tomorrow morning?")
+
+    [a] = response.assessments
+    best = a.best_blocks[0]
+    assert response.text.splitlines()[0] == (
+        f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: {a.verdict.replace('_', ' ')} ({a.score}/100); "
+        f"best time {best.start:%a %H:%M}-{best.end:%H:%M}.")
+
+
+async def test_guidelines_step_stores_topics_without_retrieving(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    graph = build_graph(extractor=QueuedExtractor(q(intent="activity_recommendation", locations=["Mumbai"],
+                                                    date_expr="tomorrow")),
+                        answer_llm=RecordingChatModel(replies=["ok"]))
+    config = {"configurable": {"thread_id": "t", "ctx": UserContext(now=CITIES_NOW)}}
+    state = await graph.ainvoke({"message": "Mumbai tomorrow outdoors?", "response": None, "debug": AgentDebug(),
+                                 "cards": [], "air_cards": [], "places": [], "assessments": [],
+                                 "guideline_topics": [], "observations": []}, config)
+    assert "heat" in state["guideline_topics"]  # Mumbai feels like 42°C
+    assert set(state["guideline_topics"]) <= {"heat", "cold", "rain", "thunderstorm", "air_quality", "uv", "wind"}
+    assert "guidelines" in state["debug"].nodes

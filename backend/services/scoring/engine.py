@@ -5,11 +5,13 @@ and the profile ranges recorded in the result.
 """
 
 from dataclasses import dataclass, field
+from typing import Literal
 from datetime import date, datetime, time, timedelta, timezone
 from statistics import fmean
 from zoneinfo import ZoneInfo
 
 from backend.services.date_resolver import TIME_OF_DAY
+from backend.services.display import whole
 from backend.services.errors import InvalidInputError
 from backend.services.models import (
     AirQualityPoint,
@@ -82,10 +84,13 @@ def assess_activity(
     air_quality_results: list[AirQualityResult] | None = None,
     now: datetime | None = None,
     duration_hours: int | None = None,
+    hints_from: Literal["best_block", "window"] = "best_block",
 ) -> ActivityAssessment:
     """Score an activity over the weather results' windows (one result per window).
 
     `duration_hours` overrides the profile's block length (e.g. a known trip length for travel).
+    `hints_from="window"` bases hints on every upcoming hour (what to wear/pack for the whole time)
+    instead of only the best block (what to take at the best time).
     """
     if not weather_results:
         raise InvalidInputError("assess_activity needs at least one weather result")
@@ -152,6 +157,8 @@ def assess_activity(
         score = round(fmean(h.score for h in hours)) if hours else 0
         hint_slots = hours
         notes.append("The requested time has already passed, so no best time is suggested.")
+    if hints_from == "window" and upcoming_hours:
+        hint_slots = upcoming_hours
 
     return ActivityAssessment(
         activity=activity,
@@ -261,7 +268,7 @@ def _part_slots(result: WeatherResult, air_points: list[AirQualityPoint], keywor
                 else:
                     slot.stops.append((kind, text))
             if day.rain_mm is not None and day.rain_mm >= HEAVY_RAIN_MM_DAY:
-                slot.stops.append(("heavy_rain", f"heavy rain ({day.rain_mm:.0f} mm in the day)"))
+                slot.stops.append(("heavy_rain", f"heavy rain ({whole(day.rain_mm)} mm in the day)"))
             _add_alerts(slot, result.alerts, keywords)
             slots.append(slot)
     return slots

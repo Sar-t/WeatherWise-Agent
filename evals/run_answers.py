@@ -28,6 +28,7 @@ from backend.agent.llm import get_llm, message_text
 from backend.agent.schemas import QueryUnderstanding, UserContext
 from backend.core.config import get_settings
 from backend.services import air_quality, weather
+from backend.services.display import percent5, whole
 from backend.services.cache import InMemoryCache
 from backend.services.weather import DAY_SUMMARY_URL, ONECALL_URL, TIMEMACHINE_URL
 from backend.tests.agent_fakes import (
@@ -54,6 +55,64 @@ _READING = re.compile(rf"(?<![\d:.])({_NUM})(?:\s*(?:-|–|to|se)\s*({_NUM}))?\s
 _NAQI = re.compile(r"\b(?:NAQI|AQI|air quality index)\D{0,12}?(?<![\d.])(\d{1,3})(?![\d./])", re.I)
 _OWM_LEVEL = re.compile(r"(?<![\d.])([1-5])\s*/\s*5\b")
 _PM = re.compile(rf"(?<![\d.])({_NUM})\s*(?:µ|μ|u)g\s*/\s*m(?:³|3)")
+_TIME = re.compile(r"(?<![\d:])(\d{1,2}):(\d{2})(?:\s*([ap])\.?m\.?\b)?|(?<![\d:])(\d{1,2})\s*([ap])\.?m\.?\b", re.I)
+
+# Verdict wording, matched as whole words/phrases. Negative phrases are found first and blanked out,
+# so "not suitable" never counts as "suitable" (bare "nahi" is too broad: "baarish nahi hogi").
+VERDICT_PHRASES = {
+    "not_suitable": ["not suitable", "unsuitable", "not a good", "isn't a good", "is not a good", "not ideal",
+                     "not recommended", "better to skip", "skip it", "theek nahi", "thik nahi", "accha nahi",
+                     "achha nahi", "sahi nahi", "mat jao", "na jaye", "nahi jaana"],
+    "marginal": ["possible", "with care", "doable", "manageable", "okay but", "ok but", "marginal", "keep an eye",
+                 "be careful", "dhyan", "dhyaan"],
+    "suitable": ["suitable", "good time", "good day", "good idea", "good for", "great", "ideal", "perfect",
+                 "fine", "theek hai", "thik hai", "accha hai", "achha hai", "badhiya"],
+}
+# Wording that contradicts each engine verdict. A marginal verdict tolerates mild words either way,
+# but not the strongest ones.
+CONTRADICTS = {"suitable": ["not_suitable"], "not_suitable": ["suitable", "marginal"], "marginal": []}
+MARGINAL_TOO_STRONG = ["perfect", "ideal", "great", "not suitable", "not recommended", "better to skip"]
+
+
+def _phrase(p: str) -> re.Pattern:
+    return re.compile(rf"(?<!\w){re.escape(p)}(?!\w)", re.I)
+
+
+def verdict_wording(reply: str) -> tuple[set[str], str]:
+    """(verdict classes the wording expresses, the reply with negative phrases blanked out)."""
+    text, found = reply, set()
+    for verdict in ("not_suitable", "marginal", "suitable"):  # negatives first
+        for p in VERDICT_PHRASES[verdict]:
+            if _phrase(p).search(text):
+                found.add(verdict)
+                if verdict == "not_suitable":
+                    text = _phrase(p).sub(" ", text)  # "not suitable" can't then match "suitable"
+    return found, text
+
+
+def check_verdict(reply: str, verdict: str) -> tuple[list[str], list[str]]:
+    """(failures, warnings): the reply must not word a different verdict; missing wording only warns."""
+    found, blanked = verdict_wording(reply)
+    failures = [f"verdict is {verdict!r} but the reply reads {c!r}" for c in CONTRADICTS[verdict] if c in found]
+    if verdict == "marginal":
+        failures += [f"verdict is 'marginal' but the reply says {p!r}" for p in MARGINAL_TOO_STRONG
+                     if _phrase(p).search(reply if p.startswith(("not", "better")) else blanked)]
+    warnings = [] if verdict in found or failures else [f"no wording found for verdict {verdict!r}"]
+    return failures, warnings
+
+
+def times(text: str) -> set[str]:
+    """Clock times as 24h 'HH:MM': '06:30', '6:30 pm' -> '18:30', '6 am' -> '06:00'."""
+    out = set()
+    for m in _TIME.finditer(text):
+        hour, minute, meridiem = (int(m.group(1)), int(m.group(2)), m.group(3)) if m.group(1) else (
+            int(m.group(4)), 0, m.group(5))
+        if meridiem:
+            hour = hour % 12 + (12 if meridiem.lower() == "p" else 0)
+        out.add(f"{hour:02d}:{minute:02d}")
+    return out
+
+
 _DERIVED_AFTER = re.compile(r"^\W*(?:\w+\W+){0,2}?(warmer|cooler|hotter|colder|higher|lower|more|less|difference|"
                             r"drop|rise|apart|up|down)\b", re.I)
 _DERIVED_BEFORE = re.compile(r"\b(by|difference of|differ by)\s*$", re.I)
@@ -128,15 +187,27 @@ def readings(text: str) -> list[tuple[float, str, int, int]]:
 def check_grounding(reply: str, observations: str) -> Grounding:
     """Every °C / % / NAQI / N-of-5 / µg/m³ figure in the reply must appear in the observations, which
     are already rounded for display (whole °C, rain chance to 5%, whole µg/m³), so the match is exact."""
-    known = {(unit, value) for value, unit, _, _ in readings(observations)}
+    known = {(unit, _display(unit, value)) for value, unit, _, _ in readings(observations)}
     result = Grounding()
     for value, unit, start, end in readings(reply):
-        if (unit, value) in known:
+        if (unit, _display(unit, value)) in known:
             continue
         context = reply[max(0, start - 20): end + 25].replace("\n", " ")
         derived = _DERIVED_AFTER.search(reply[end:end + 30]) or _DERIVED_BEFORE.search(reply[max(0, start - 15):start])
         (result.warnings if derived else result.failures).append(f"{value:g}{unit} in '…{context}…'")
     return result
+
+
+def _display(unit: str, value: float) -> float:
+    """A figure as the shared display helper would show it, so equal values compare equal."""
+    if unit == "%":
+        return percent5(value / 100) if value <= 100 else value
+    return value if unit == "/5" else whole(value)
+
+
+def check_times(reply: str, observations: str) -> list[str]:
+    """Every clock time in the reply must appear in the observations (best/avoid blocks, hours)."""
+    return [f"time {t} not in the observations" for t in sorted(times(reply) - times(observations))]
 
 
 def install_recorded_weather(router: respx.MockRouter) -> None:
@@ -194,6 +265,11 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
         grounding = check_grounding(response.text, observations)
         failures += [f"{tag}ungrounded reading {f}" for f in grounding.failures]
         warnings += [f"{tag}derived number {w}" for w in grounding.warnings]
+        failures += [f"{tag}{f}" for f in check_times(response.text, observations)]
+        if len(response.assessments) == 1 and not response.debug.answer_fallback:  # comparisons word two verdicts
+            verdict_failures, verdict_warnings = check_verdict(response.text, response.assessments[0].verdict)
+            failures += [f"{tag}{f}" for f in verdict_failures]
+            warnings += [f"{tag}{w}" for w in verdict_warnings]
     return failures, warnings, replies
 
 

@@ -1,5 +1,6 @@
 """Factor curves and hour scores. Pure functions."""
 
+from backend.services.display import celsius, chance, kmh, whole
 from backend.services.scoring.config import FactorSpec, LowerLimit, TwoSided, UpperLimit
 from backend.services.scoring.models import Verdict
 
@@ -57,19 +58,19 @@ def reason(name: str, value: float, spec: FactorSpec, label: str | None = None) 
         hot = value > spec.ideal[1]
         beyond = value > spec.acceptable[1] if hot else value < spec.acceptable[0]
         side = ("too hot" if beyond else "warm") if hot else ("too cold" if beyond else "cool")
-        return f"{label or 'feels like'} {value:.0f}°C, {side}"
+        return f"{label or 'feels like'} {celsius(value)}, {side}"
     if name == "naqi":
-        return label or f"NAQI {value:.0f}"
+        return label or f"NAQI {whole(value)}"
     if name == "rain_prob":
-        return f"rain chance {value * 100:.0f}%"
+        return f"rain chance {chance(value)}"
     if name == "rain_mm":
         return f"rain {value:.1f} mm/h"
     if name == "wind_kmh":
-        return f"wind {value:.0f} km/h"
+        return f"wind {kmh(value)}"
     if name == "wind_gust_kmh":
-        return f"gusts {value:.0f} km/h"
+        return f"gusts {kmh(value)}"
     if name == "uvi":
-        return f"UV index {value:.0f}"
+        return f"UV index {whole(value)}"
     if name == "visibility_m":
-        return f"visibility {value / 1000:.1f} km" if value >= 1000 else f"visibility {value:.0f} m"
+        return f"visibility {value / 1000:.1f} km" if value >= 1000 else f"visibility {whole(value)} m"
     raise ValueError(f"unknown factor {name!r}")

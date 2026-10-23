@@ -4,10 +4,15 @@ Values are display-ready, so the answer model can copy them as they are: tempera
 rain chance to the nearest 5%, wind and UV whole numbers. Cards keep the precise values.
 """
 
-import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from backend.services.display import celsius as _t
+from backend.services.display import chance as _pct
+from backend.services.display import kmh as _kmh
+from backend.services.display import whole as _int
+from backend.services.scoring.blocks import block_reasons
+from backend.services.scoring.models import ActivityAssessment
 from backend.services.models import (
     AirQualityPoint,
     AirQualityResult,
@@ -90,6 +95,63 @@ def summarize_air(result: AirQualityResult, max_chars: int = AIR_MAX_CHARS) -> s
         if len(text) <= max_chars:
             return text
     return text[: max_chars - 1] + "…"
+
+
+ASSESSMENT_MAX_CHARS = 1500
+# Which assessment sections come first, by what was asked.
+SECTION_ORDER = {
+    "suitability": ("reasons", "best", "avoid", "hints"),
+    "best_time": ("best", "reasons", "avoid", "hints"),
+    "avoid": ("avoid", "best", "reasons", "hints"),
+    "packing": ("hints", "reasons", "best", "avoid"),
+    "travel_timing": ("best", "avoid", "reasons", "hints"),
+}
+
+
+def summarize_assessment(a: ActivityAssessment, recommendation_type: str | None = None,
+                         intent: str | None = None, max_chars: int = ASSESSMENT_MAX_CHARS) -> str:
+    """The scoring engine's verdict, best/avoid times, reasons and hints for one place.
+
+    Sections are ordered by `recommendation_type` (or, without one, by intent: clothing -> packing,
+    travel -> travel_timing, else suitability). Data notes go last and are dropped first if too long.
+    """
+    kind = recommendation_type or {"clothing_recommendation": "packing",
+                                   "travel_recommendation": "travel_timing"}.get(intent or "", "suitability")
+    windows = "; ".join(window_text(w) for w in a.windows)
+    lines = [f"{place_name(a.location)} | ACTIVITY ASSESSMENT ({a.profile.replace('_', ' ')}) | {windows}"]
+    if a.is_daily_estimate:
+        lines.append("DAILY ESTIMATE: rough outlook from daily forecasts, lower confidence")
+    lines.append(f"VERDICT (from the scoring engine; explain it, don't change it): "
+                 f"{a.verdict.replace('_', ' ')}, score {a.score}/100")
+
+    parts = {p.time: p.part_of_day for p in a.hourly if p.part_of_day}
+
+    def block(b) -> str:
+        part = f" ({parts[b.start]})" if b.start in parts else ""
+        why = f": {'; '.join(b.reasons)}" if b.reasons else ""
+        return f"{_block_time(b)}{part}, score {b.average_score} ({b.verdict.replace('_', ' ')}){why}"
+
+    reasons = a.best_blocks[0].reasons if a.best_blocks else block_reasons(a.hourly, 3)
+    sections = {
+        "reasons": [f"Main reasons: {'; '.join(reasons)}" if reasons else "Main reasons: no factor lost points"],
+        "best": ([f"- Best time: {block(b)}" for b in a.best_blocks] or ["Best time: none in the requested time"]),
+        "avoid": [f"- Avoid: {block(b)}" for b in a.avoid_blocks] or ["Avoid: nothing in the requested time"],
+        "hints": [f"Hints: {' '.join(a.hints)}"] if a.hints else [],
+    }
+    for name in SECTION_ORDER[kind]:
+        lines += sections[name]
+    notes = [f"Data note: {n}" for n in a.data_quality]
+    while notes and len("\n".join(lines + notes)) > max_chars:
+        notes.pop()
+    text = "\n".join(lines + notes)
+    return text if len(text) <= max_chars else text[: max_chars - 1] + "…"
+
+
+def _block_time(b) -> str:
+    """'Fri 06:30-08:30'; a block ending on a later day shows that day too."""
+    if b.end.date() == b.start.date():
+        return f"{b.start:%a %H:%M}-{b.end:%H:%M}"
+    return f"{b.start:%a %H:%M}-{b.end:%a %H:%M}"
 
 
 def air_unavailable(location: Location, reason: str) -> str:
@@ -225,19 +287,3 @@ def _owm_level(p: AirQualityPoint) -> str:
     return f"{p.owm_aqi}/5 {OWM_AQI_NAMES[p.owm_aqi]}" if p.owm_aqi is not None else "n/a"
 
 
-def _int(value: float) -> int:
-    """Round half up (Python's round() sends 24.5 to 24)."""
-    return math.floor(value + 0.5)
-
-
-def _t(celsius: float) -> str:
-    return f"{_int(celsius)}°C"
-
-
-def _pct(fraction: float) -> str:
-    """Rain chance to the nearest 5%."""
-    return f"{5 * _int(fraction * 20)}%"
-
-
-def _kmh(speed: float) -> str:
-    return f"{_int(speed)} km/h"

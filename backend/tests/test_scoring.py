@@ -475,6 +475,13 @@ def test_hints_deduplicate() -> None:
     assert hints.hints(rules, [slot]) == ["Umbrella."]
 
 
+def test_hints_can_cover_the_whole_window() -> None:
+    hot = {"feels_like_c": 36}
+    window = [with_hours(at(10), 4, {2: hot, 3: hot})]
+    assert assess_activity("walking", window, now=NOW).hints == []  # best block 10:00 is mild
+    assert assess_activity("walking", window, now=NOW, hints_from="window").hints[0].startswith("Wear light")
+
+
 def test_assessment_hints_come_from_the_best_block() -> None:
     hot = {"feels_like_c": 36}
     result = assess_activity("walking", [with_hours(at(10), 4, {2: hot, 3: hot})], now=NOW)
