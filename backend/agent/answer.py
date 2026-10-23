@@ -9,7 +9,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from backend.agent.llm import call_with_backoff, get_llm, message_text
+from backend.agent.llm import call_with_backoff, invoke, message_text
 from backend.agent.observations import hourly_stats, place_name, window_text
 from backend.agent.schemas import QueryUnderstanding
 from backend.services.models import WeatherResult
@@ -59,8 +59,10 @@ async def generate_answer(
     """LLM reply grounded in `observations`; if the LLM fails, a template reply from `cards`."""
     messages = build_messages(message, understanding, observations, now)
     try:
-        model = llm or get_llm("answer")
-        reply = await call_with_backoff(lambda: model.ainvoke(messages))
+        if llm is not None:
+            reply = await call_with_backoff(lambda: llm.ainvoke(messages))
+        else:
+            reply = await invoke("answer", lambda model: model.ainvoke(messages))
         text = message_text(reply).strip()
         if not text:
             raise ValueError("empty reply from the answer model")

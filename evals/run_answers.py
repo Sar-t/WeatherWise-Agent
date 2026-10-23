@@ -111,11 +111,12 @@ def readings(text: str) -> list[tuple[float, str, int, int]]:
 
 
 def check_grounding(reply: str, observations: str) -> Grounding:
-    """Every °C / % reading in the reply must be in the observations (±0.5 for rounding)."""
+    """Every °C / % reading in the reply must appear in the observations, which are already rounded
+    for display (whole °C, rain chance to 5%), so the match is exact."""
     known = {(unit, value) for value, unit, _, _ in readings(observations)}
     result = Grounding()
     for value, unit, start, end in readings(reply):
-        if any(u == unit and abs(v - value) <= 0.5 for u, v in known):
+        if (unit, value) in known:
             continue
         context = reply[max(0, start - 20): end + 25].replace("\n", " ")
         derived = _DERIVED_AFTER.search(reply[end:end + 30]) or _DERIVED_BEFORE.search(reply[max(0, start - 15):start])

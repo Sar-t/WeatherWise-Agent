@@ -1,5 +1,6 @@
 import copy
 import json
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -25,6 +26,15 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def ist(d: int, h: int = 0) -> datetime:
     return datetime(2026, 10, d, h, tzinfo=IST)
+
+
+def r(value: float) -> int:
+    """Display rounding, half up."""
+    return math.floor(value + 0.5)
+
+
+def pct(fraction: float) -> str:
+    return f"{5 * r(fraction * 20)}%"
 
 
 @pytest.fixture
@@ -74,15 +84,15 @@ async def test_hourly_observation(jaipur_onecall) -> None:
     hours = [line for line in lines if line.startswith("- ")]
     assert [h[:11] for h in hours] == ["- Mon 17:30", "- Mon 18:30", "- Mon 19:30", "- Mon 20:30"]
     first = result.hourly[0]
-    assert f"{first.temp_c:.1f}°C, feels {first.feels_like_c:.1f}°C" in hours[0]
-    assert f"wind {first.wind_kmh:.0f} km/h" in hours[0]
+    assert f"{r(first.temp_c)}°C, feels {r(first.feels_like_c)}°C" in hours[0]
+    assert f"wind {r(first.wind_kmh)} km/h" in hours[0]
 
     stats = hourly_stats(result.hourly)
     summary = lines[-1]
     assert summary.startswith("Summary of 4 hours: ")
-    assert f"temp {stats.temp_min:.1f}°C to {stats.temp_max:.1f}°C" in summary
-    assert f"max rain chance {stats.rain_prob_max * 100:.0f}% at {stats.rain_prob_max_at:%a %H:%M}" in summary
-    assert f"total rain {stats.rain_total_mm:.1f} mm" in summary and f"max wind {stats.wind_max:.0f} km/h" in summary
+    assert f"temp {r(stats.temp_min)}°C to {r(stats.temp_max)}°C" in summary
+    assert f"max rain chance {pct(stats.rain_prob_max)} at {stats.rain_prob_max_at:%a %H:%M}" in summary
+    assert f"total rain {stats.rain_total_mm:.1f} mm" in summary and f"max wind {r(stats.wind_max)} km/h" in summary
 
 
 async def test_hourly_stats_find_the_wettest_hour(jaipur_onecall) -> None:
@@ -103,7 +113,7 @@ async def test_long_hourly_window_is_capped_and_sampled(jaipur_onecall) -> None:
     assert "(every 2nd hour)" in text or "(every 3rd hour)" in text or "Hours" not in text
     assert f"Summary of {len(result.hourly)} hours" in text  # aggregates cover every hour, not the sample
     stats = hourly_stats(result.hourly)
-    assert f"temp {stats.temp_min:.1f}°C to {stats.temp_max:.1f}°C" in text
+    assert f"temp {r(stats.temp_min)}°C to {r(stats.temp_max)}°C" in text
 
 
 async def test_cap_keeps_aggregates_even_when_hours_must_go(jaipur_onecall) -> None:
@@ -123,8 +133,8 @@ async def test_daily_observation_with_part_of_day(jaipur_onecall) -> None:
     text = summarize(result, time_expr="evening")
 
     assert "Jaipur | FORECAST, daily | Thu 22 Oct, 00:00-24:00 IST" in text
-    assert f"Thu 22 Oct: {day.temp_min_c:.1f}°C to {day.temp_max_c:.1f}°C, evening {day.temp_evening_c:.1f}°C" in text
-    assert f"rain chance {day.rain_prob * 100:.0f}%" in text and f"wind {day.wind_kmh:.0f} km/h" in text
+    assert f"Thu 22 Oct: {r(day.temp_min_c)}°C to {r(day.temp_max_c)}°C, evening {r(day.temp_evening_c)}°C" in text
+    assert f"rain chance {pct(day.rain_prob)}" in text and f"wind {r(day.wind_kmh)} km/h" in text
     assert day.summary in text
     assert "evening" not in summarize(result)  # no part of day asked -> not shown
 
@@ -144,8 +154,24 @@ async def test_current_observation(jaipur_onecall) -> None:
     [p] = result.hourly
     text = summarize(result)
     assert "CURRENT CONDITIONS (observed now)" in text
-    assert text.splitlines()[1] == (f"Now (20:17): {p.temp_c:.1f}°C, feels {p.feels_like_c:.1f}°C, humidity 52%, "
-                                    f"wind {p.wind_kmh:.0f} km/h, scattered clouds")
+    assert text.splitlines()[1] == "Now (20:17): 25°C, feels 25°C, humidity 52%, wind 16 km/h, scattered clouds"
+    assert (p.temp_c, p.feels_like_c) == (25.03, 24.95)  # the card keeps the precise values
+
+
+@pytest.mark.parametrize("fraction, expected", [(0.0, "0%"), (0.04, "5%"), (0.024, "0%"), (0.025, "5%"),
+                                                (0.26, "25%"), (0.775, "80%"), (1.0, "100%")])
+def test_rain_chance_rounds_to_nearest_5(fraction: float, expected: str) -> None:
+    from backend.agent.observations import _pct
+
+    assert _pct(fraction) == expected
+
+
+@pytest.mark.parametrize("celsius, expected", [(24.87, "25°C"), (24.5, "25°C"), (24.49, "24°C"), (-0.5, "0°C"),
+                                               (-0.51, "-1°C")])
+def test_temperatures_round_half_up_to_whole_degrees(celsius: float, expected: str) -> None:
+    from backend.agent.observations import _t
+
+    assert _t(celsius) == expected
 
 
 async def test_alerts_come_first_and_are_trimmed(respx_mock) -> None:

@@ -1,5 +1,10 @@
-"""Compact, LLM-friendly summaries of WeatherResults ("observations"). Never raw API JSON."""
+"""Compact, LLM-friendly summaries of WeatherResults ("observations"). Never raw API JSON.
 
+Values are display-ready, so the answer model can copy them as they are: temperatures in whole °C,
+rain chance to the nearest 5%, wind and UV whole numbers. Cards keep the precise values.
+"""
+
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -101,8 +106,8 @@ def _alert(alert: WeatherAlert, max_chars: int) -> str:
 
 
 def _current(p: WeatherPoint) -> str:
-    return (f"Now ({p.time:%H:%M}): {_t(p.temp_c)}, feels {_t(p.feels_like_c)}, humidity {p.humidity:.0f}%, "
-            f"wind {p.wind_kmh:.0f} km/h, {p.description or p.condition or 'n/a'}")
+    return (f"Now ({p.time:%H:%M}): {_t(p.temp_c)}, feels {_t(p.feels_like_c)}, humidity {_int(p.humidity)}%, "
+            f"wind {_kmh(p.wind_kmh)}, {p.description or p.condition or 'n/a'}")
 
 
 def _hourly(points: list[WeatherPoint], step: int | None) -> list[str]:
@@ -117,7 +122,7 @@ def _hourly(points: list[WeatherPoint], step: int | None) -> list[str]:
             if stats.rain_prob_max is not None else "rain chance n/a")
     lines.append(
         f"Summary of {len(points)} hours: temp {_t(stats.temp_min)} to {_t(stats.temp_max)}; {rain}; "
-        f"total rain {stats.rain_total_mm:.1f} mm; max wind {stats.wind_max:.0f} km/h"
+        f"total rain {stats.rain_total_mm:.1f} mm; max wind {_kmh(stats.wind_max)}"
     )
     return lines
 
@@ -125,7 +130,7 @@ def _hourly(points: list[WeatherPoint], step: int | None) -> list[str]:
 def _hour(p: WeatherPoint) -> str:
     rain = _pct(p.rain_prob) if p.rain_prob is not None else "n/a"
     return (f"- {p.time:%a %H:%M}: {_t(p.temp_c)}, feels {_t(p.feels_like_c)}, rain {rain}, "
-            f"wind {p.wind_kmh:.0f} km/h, {p.description or p.condition or 'n/a'}")
+            f"wind {_kmh(p.wind_kmh)}, {p.description or p.condition or 'n/a'}")
 
 
 def _day(d, time_expr: str | None) -> str:
@@ -138,20 +143,30 @@ def _day(d, time_expr: str | None) -> str:
     if d.rain_mm is not None:
         parts.append(f"rain {d.rain_mm:.1f} mm")
     if d.wind_kmh is not None:
-        parts.append(f"wind {d.wind_kmh:.0f} km/h")
+        parts.append(f"wind {_kmh(d.wind_kmh)}")
     if d.wind_max_kmh is not None:
-        parts.append(f"{'gusts' if d.wind_kmh is not None else 'peak wind'} {d.wind_max_kmh:.0f} km/h")
+        parts.append(f"{'gusts' if d.wind_kmh is not None else 'peak wind'} {_kmh(d.wind_max_kmh)}")
     if d.uvi is not None:
-        parts.append(f"UV {d.uvi:.0f}")
+        parts.append(f"UV {_int(d.uvi)}")
     text = ", ".join(parts)
     if d.summary or d.description:
         text += f". {d.summary or d.description}"
     return text
 
 
+def _int(value: float) -> int:
+    """Round half up (Python's round() sends 24.5 to 24)."""
+    return math.floor(value + 0.5)
+
+
 def _t(celsius: float) -> str:
-    return f"{celsius:.1f}°C"
+    return f"{_int(celsius)}°C"
 
 
 def _pct(fraction: float) -> str:
-    return f"{fraction * 100:.0f}%"
+    """Rain chance to the nearest 5%."""
+    return f"{5 * _int(fraction * 20)}%"
+
+
+def _kmh(speed: float) -> str:
+    return f"{_int(speed)} km/h"

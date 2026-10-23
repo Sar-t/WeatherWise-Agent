@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import re
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal, TypeVar
 
@@ -17,11 +18,15 @@ from backend.services.errors import WeatherWiseError
 log = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
-BACKOFF_BASE_S = 2.0  # waits 2 s, 4 s, 8 s
+BACKOFF_BASE_S = 2.0  # waits 2 s, 4 s, 8 s, unless the provider says how long to wait
+MAX_RETRY_DELAY_S = 60.0  # longest provider-suggested wait honoured within one request
+EXHAUSTED_TTL_S = 60 * 60  # skip a model whose daily quota ran out for this long
 
 T = TypeVar("T")
 _sleep = asyncio.sleep  # module-level so tests can replace it
+_clock = time.monotonic  # module-level so tests can replace it
 _models: dict[tuple, BaseChatModel] = {}  # built chat models, one per configuration
+_exhausted: dict[str, float] = {}  # model -> when its daily quota was found used up
 
 
 class LLMConfigError(WeatherWiseError):
@@ -32,6 +37,10 @@ class LLMRateLimitError(WeatherWiseError):
     """The provider kept rejecting requests for rate/quota reasons after all retries."""
 
 
+class LLMDailyQuotaError(LLMRateLimitError):
+    """The model's daily quota is used up; retrying today won't help, another model might."""
+
+
 class LLMUnavailableError(WeatherWiseError):
     """The provider kept reporting it is overloaded (503) after all retries."""
 
@@ -39,14 +48,14 @@ class LLMUnavailableError(WeatherWiseError):
 Role = Literal["extraction", "answer"]
 
 
-def get_llm(role: Role = "extraction", settings: Settings | None = None) -> BaseChatModel:
+def get_llm(role: Role = "extraction", settings: Settings | None = None, model: str | None = None) -> BaseChatModel:
     """Build the chat model for `role` from settings. Raises LLMConfigError if it can't be configured.
 
-    EXTRACTION_MODEL / ANSWER_MODEL override LLM_MODEL for their role.
+    EXTRACTION_MODEL / ANSWER_MODEL override LLM_MODEL for their role; `model` overrides both.
     """
     settings = settings or get_settings()
     _configure_tracing(settings)
-    model = getattr(settings, f"{role}_model") or settings.llm_model
+    model = model or getattr(settings, f"{role}_model") or settings.llm_model
     if not model:
         raise LLMConfigError(_missing_model_message(settings))
 
@@ -105,10 +114,63 @@ def _profile_levels(model: str) -> list[str] | None:
         return None
 
 
+def model_chain(role: Role, settings: Settings) -> list[str]:
+    """Models to try for `role`, in order: its own, then LLM_MODEL, then the other role's."""
+    other: Role = "answer" if role == "extraction" else "extraction"
+    names = [getattr(settings, f"{role}_model"), settings.llm_model, getattr(settings, f"{other}_model")]
+    return list(dict.fromkeys(n for n in names if n))
+
+
+async def invoke(role: Role, call: Callable[[BaseChatModel], Awaitable[T]], settings: Settings | None = None) -> T:
+    """Run `call(model)` with backoff on the role's model; on a used-up daily quota, switch to the
+    next configured model. Models found exhausted are skipped for EXHAUSTED_TTL_S."""
+    settings = settings or get_settings()
+    chain = model_chain(role, settings)
+    if not chain:
+        raise LLMConfigError(_missing_model_message(settings))
+    fresh = [m for m in chain if _clock() - _exhausted.get(m, float("-inf")) >= EXHAUSTED_TTL_S]
+    if not fresh:
+        raise LLMDailyQuotaError(_daily_quota_message(chain))
+    for i, name in enumerate(fresh):
+        try:
+            model = get_llm(role, settings, model=name)
+        except LLMConfigError:
+            if name == chain[0]:
+                raise
+            log.warning("fallback model unusable, skipping", extra={"model": name, "role": role})
+            continue
+        try:
+            return await call_with_backoff(lambda: call(model))
+        except LLMDailyQuotaError:
+            _exhausted[name] = _clock()
+            log.warning("daily quota used up", extra={"model": name, "role": role,
+                                                      "next": fresh[i + 1] if i + 1 < len(fresh) else None})
+    raise LLMDailyQuotaError(_daily_quota_message(chain))
+
+
+def _daily_quota_message(models: list[str]) -> str:
+    return (f"The LLM's free-tier daily quota is used up for {', '.join(models)} (429 RESOURCE_EXHAUSTED). "
+            "It resets within 24 hours; until then set LLM_MODEL to another model, which has its own quota.")
+
+
+def retry_delay(exc: BaseException) -> float | None:
+    """Seconds the provider asks us to wait, e.g. Gemini's "'retryDelay': '23s'", if it says."""
+    text = str(exc)
+    match = (re.search(r"""retryDelay['"]?\s*[:=]\s*['"]?(\d+(?:\.\d+)?)s""", text)
+             or re.search(r"retry in (\d+(?:\.\d+)?)\s*s", text, re.IGNORECASE))
+    return float(match.group(1)) if match else None
+
+
+def is_daily_quota(exc: BaseException) -> bool:
+    """True when a 429 is about the per-day quota (Gemini quotaId ...PerDay...), not per-minute."""
+    return "PerDay" in str(exc)
+
+
 async def call_with_backoff(
     call: Callable[[], Awaitable[T]], sleep: Callable[[float], Awaitable[None]] | None = None
 ) -> T:
-    """Run `call`, retrying rate limits (429) and overloads (503) with exponential backoff."""
+    """Run `call`, retrying rate limits (429) and overloads (503). Waits as long as the provider
+    asks when it says, else backs off exponentially. A used-up daily quota is not retried."""
     sleep = sleep or _sleep
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -122,8 +184,8 @@ async def call_with_backoff(
                     f"The LLM provider is overloaded (503 UNAVAILABLE) and {MAX_RETRIES} retries did not help. "
                     "Try again in a minute."
                 ) from None
-            if not overloaded and "PerDay" in str(exc):  # a daily quota won't reset during a backoff
-                raise LLMRateLimitError(
+            if not overloaded and is_daily_quota(exc):  # a daily quota won't reset during a backoff
+                raise LLMDailyQuotaError(
                     "The LLM's free-tier daily quota for this model is used up (429 RESOURCE_EXHAUSTED). "
                     "It resets within 24 hours; until then set LLM_MODEL to another model, which has its own quota."
                 ) from None
@@ -132,7 +194,13 @@ async def call_with_backoff(
                     f"The LLM's free-tier rate limit was hit (429 RESOURCE_EXHAUSTED) and {MAX_RETRIES} retries "
                     "did not help. Wait a minute and try again, or use a key with a higher quota."
                 ) from None
-            delay = BACKOFF_BASE_S * 2**attempt
+            hinted = None if overloaded else retry_delay(exc)
+            if hinted is not None and hinted > MAX_RETRY_DELAY_S:
+                raise LLMRateLimitError(
+                    f"The LLM's free-tier rate limit was hit (429 RESOURCE_EXHAUSTED) and the provider asks to "
+                    f"wait {hinted:.0f} s. Try again then."
+                ) from None
+            delay = hinted if hinted is not None else BACKOFF_BASE_S * 2**attempt
             log.warning(
                 "llm busy, backing off",
                 extra={"attempt": attempt + 1, "delay_s": delay, "reason": "503" if overloaded else "429"},

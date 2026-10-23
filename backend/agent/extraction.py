@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from backend.agent.llm import call_with_backoff, get_llm, message_text
+from backend.agent.llm import call_with_backoff, invoke, message_text
 from backend.agent.schemas import QueryUnderstanding, UserContext
 from backend.services.date_resolver import DATE_EXPRESSIONS, TIME_EXPRESSIONS
 
@@ -62,7 +62,6 @@ async def extract(
     llm: BaseChatModel | None = None,
 ) -> Extraction:
     """One LLM call normally; one retry on invalid output, then intent 'unclear'."""
-    structured = (llm or get_llm("extraction")).with_structured_output(QueryUnderstanding, include_raw=True)
     messages = [
         SystemMessage(build_system_prompt(ctx)),
         HumanMessage(build_user_message(message, previous, pending_question)),
@@ -70,12 +69,19 @@ async def extract(
     started = time.perf_counter()
     raw = None
     for attempt in range(1, ATTEMPTS + 1):
-        result: dict[str, Any] = await call_with_backoff(lambda: structured.ainvoke(messages))
+        if llm is not None:
+            result: dict[str, Any] = await call_with_backoff(lambda: _structured(llm).ainvoke(messages))
+        else:
+            result = await invoke("extraction", lambda model: _structured(model).ainvoke(messages))
         raw = _raw_text(result.get("raw"))
         parsed = result.get("parsed")
         if isinstance(parsed, QueryUnderstanding) and result.get("parsing_error") is None:
             return Extraction(parsed, raw, attempt, time.perf_counter() - started)
     return Extraction(QueryUnderstanding(intent="unclear"), raw, ATTEMPTS, time.perf_counter() - started)
+
+
+def _structured(model: BaseChatModel) -> Any:
+    return model.with_structured_output(QueryUnderstanding, include_raw=True)
 
 
 def _slots_json(u: QueryUnderstanding) -> str:
