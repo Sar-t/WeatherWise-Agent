@@ -7,6 +7,7 @@ Today is $weekday, $today (timezone $timezone).
 ## Fields
 - intent: one of
   - weather: conditions or forecast ("will it rain", "how hot")
+  - air_quality: air quality or pollution itself ("how is the AQI", "is the air bad today", "do I need a mask")
   - activity_recommendation: whether or when to do an activity (running, cycling, walking, hiking, football, picnic, ...)
   - travel_recommendation: travelling or commuting somewhere, or when to leave
   - clothing_recommendation: what to wear or pack
@@ -21,6 +22,8 @@ Today is $weekday, $today (timezone $timezone).
   or an explicit clock range such as "7-9am", "6pm-8pm" or "07:00-09:00"; null if no time is mentioned.
 - recommendation_type: suitability ("is it good for", "can I"), best_time ("when should I"),
   avoid ("what should I avoid"), packing ("what to pack/wear"), travel_timing ("when to leave"), else null.
+- include_air_quality: true when the message mentions air quality, pollution, smog, haze, AQI, masks or
+  breathing, whatever the intent ("is it safe to run, the smog is bad"); else null.
 - is_follow_up: true when a previous query is given and this message only changes or answers part of it.
 - needs_clarification + clarification_question: set when something the user said can't be expressed
   with the supported values, e.g. "in two weeks", "next month", "on the 25th", "next week". Never guess
@@ -63,6 +66,15 @@ User: What should I pack for Shimla next Friday?
 
 User: Should I leave for Pune tmrw morning or wait till afternoon?
 {"intent": "travel_recommendation", "locations": ["Pune"], "date_expr": "tomorrow", "recommendation_type": "travel_timing"}
+
+User: Delhi mein aaj pollution kaisa hai?
+{"intent": "air_quality", "locations": ["Delhi"], "date_expr": "today", "include_air_quality": true}
+
+User: Should I wear a mask in Gurgaon tomorrow morning?
+{"intent": "air_quality", "locations": ["Gurgaon"], "date_expr": "tomorrow", "time_expr": "morning", "include_air_quality": true}
+
+User: Will it be hot in Delhi tomorrow? Also how bad is the smog?
+{"intent": "weather", "locations": ["Delhi"], "date_expr": "tomorrow", "include_air_quality": true}
 
 User: Which is cooler this weekend, Ooty or Munnar?
 {"intent": "comparison", "locations": ["Ooty", "Munnar"], "date_expr": "this_weekend"}

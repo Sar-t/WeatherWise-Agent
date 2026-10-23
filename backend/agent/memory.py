@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from backend.agent.extraction import Extraction, extract
 from backend.agent.resolution import option_label, place_key, resolve_query
-from backend.agent.schemas import Clarification, QueryUnderstanding, ResolvedQuery, UserContext
+from backend.agent.schemas import AIR_QUALITY_INTENTS, Clarification, QueryUnderstanding, ResolvedQuery, UserContext
 from backend.services.models import Location
 
 Extractor = Callable[..., Awaitable[Extraction]]
@@ -19,7 +19,7 @@ _ORDINALS = {"first": 0, "1st": 0, "second": 1, "2nd": 1, "third": 2, "3rd": 2}
 def merge(previous: QueryUnderstanding, new: QueryUnderstanding) -> QueryUnderstanding:
     """New non-null (and non-empty) slots override the previous ones."""
     merged = previous.model_copy()
-    for field in ("intent", "activity", "date_expr", "time_expr", "recommendation_type"):
+    for field in ("intent", "activity", "date_expr", "time_expr", "recommendation_type", "include_air_quality"):
         if (value := getattr(new, field)) is not None:
             setattr(merged, field, value)
     if new.locations:
@@ -89,6 +89,8 @@ async def understand(memory: MemoryState, message: str, ctx: UserContext, extrac
     else:
         understanding = new
         memory.pinned.clear()
+    if understanding.intent in AIR_QUALITY_INTENTS:  # code decides, not the LLM; kept for follow-ups
+        understanding = understanding.model_copy(update={"include_air_quality": True})
     memory.previous = understanding
     return Turn(understanding, extraction), memory
 

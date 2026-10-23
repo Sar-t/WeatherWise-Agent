@@ -16,14 +16,16 @@ from backend.agent.graph import (
 )
 from backend.agent.llm import LLMRateLimitError
 from backend.agent.schemas import QueryUnderstanding, UserContext
-from backend.services import weather
+from backend.services import air_quality, weather
 from backend.services.cache import InMemoryCache
 from backend.services.weather import ONECALL_URL
 from backend.tests.agent_fakes import (
+    ONECALL_BY_LAT_AQ,
     QueuedExtractor,
     RecordingChatModel,
     fixture_now,
     install_fake_geocoding,
+    mock_air_quality,
     mock_onecall,
 )
 
@@ -92,7 +94,7 @@ async def test_answer_prompt_gets_observations_not_raw_json(respx_mock) -> None:
     assert "Jaipur | FORECAST, hourly | Mon 19 Oct, 17:00-21:00 IST" in prompt
     assert "Summary of 4 hours" in prompt
     for raw_key in ('"dt"', "wind_speed", "feels_like", '"pop"', "{'", '{"'):
-        assert raw_key not in prompt.split("Weather observations:")[1]
+        assert raw_key not in prompt.split("Observations:")[1]
     assert "Use only numbers that appear in the observations" in messages[0].content
 
 
@@ -272,3 +274,135 @@ async def test_answer_llm_failure_falls_back_to_template(respx_mock) -> None:
     low, high = min(p.temp_c for p in stats_points), max(p.temp_c for p in stats_points)
     assert response.text.startswith("Jaipur, Mon 19 Oct, 17:00-21:00 IST: expected")
     assert f"{low:.0f}-{high:.0f}°C" in response.text
+
+
+# --- air quality -------------------------------------------------------------------
+
+
+AQ_NOW = fixture_now("delhi_aq")  # Thu 22 Oct 2026 12:00 IST, recorded with the air quality fixtures
+
+
+@pytest.fixture
+def aq_world(respx_mock, monkeypatch: pytest.MonkeyPatch):
+    """Recorded weather + air quality for Delhi and Paris (Jaipur has no air quality recording: 503)."""
+    monkeypatch.setattr(air_quality, "cache", InMemoryCache())
+    mock_air_quality(respx_mock)
+    return mock_onecall(respx_mock, by_lat=ONECALL_BY_LAT_AQ)
+
+
+def run_q(**slots) -> QueryUnderstanding:
+    return q(**({"intent": "activity_recommendation", "activity": "running", "locations": ["Delhi"],
+                 "date_expr": "tomorrow", "time_expr": "morning"} | slots))
+
+
+async def test_activity_query_gets_weather_and_air_quality(aq_world) -> None:
+    agent, extractor, answer = make_agent(run_q(), now=AQ_NOW)
+    response = await agent.ask("Is it ok to run in Delhi tomorrow morning?")
+
+    assert response.kind == "answer"
+    assert sorted(t.name for t in response.debug.tool_calls) == ["get_air_quality_for_windows",
+                                                                 "get_weather_for_windows"]
+    [card], [air_card] = response.cards, response.air_quality
+    assert (air_card.granularity, air_card.location.name, len(air_card.points)) == ("hourly", "New Delhi", 6)
+    assert air_card.window == card.window
+    prompt = answer.calls[0][-1].content
+    assert "New Delhi | FORECAST, hourly" in prompt
+    assert "New Delhi | AIR QUALITY FORECAST, hourly (India NAQI, CPCB)" in prompt
+    assert f"worst NAQI {air_card.summary.naqi_max}, {air_card.summary.naqi_category}" in prompt
+    assert "µg/m³" in prompt and "not the index" in prompt
+    assert response.debug.llm_calls == 2  # air quality adds no LLM call
+
+
+async def test_weather_and_air_quality_are_fetched_concurrently(aq_world, monkeypatch: pytest.MonkeyPatch) -> None:
+    started = {"weather": asyncio.Event(), "air": asyncio.Event()}
+    real_weather, real_air = weather.get_weather_multi, air_quality.get_air_quality_multi
+
+    async def slow_weather(*args, **kwargs):
+        started["weather"].set()
+        await asyncio.wait_for(started["air"].wait(), timeout=2)  # only returns if air quality started too
+        return await real_weather(*args, **kwargs)
+
+    async def slow_air(*args, **kwargs):
+        started["air"].set()
+        await asyncio.wait_for(started["weather"].wait(), timeout=2)
+        return await real_air(*args, **kwargs)
+
+    monkeypatch.setattr(weather, "get_weather_multi", slow_weather)
+    monkeypatch.setattr(air_quality, "get_air_quality_multi", slow_air)
+    agent, _, _ = make_agent(run_q(), now=AQ_NOW)
+    response = await agent.ask("Is it ok to run in Delhi tomorrow morning?")
+    assert response.kind == "answer" and response.air_quality  # sequential calls would have timed out
+
+
+async def test_air_quality_failure_becomes_a_note_not_an_error(aq_world) -> None:
+    agent, _, answer = make_agent(run_q(locations=["Jaipur"]), now=JAIPUR_NOW)  # no recording for Jaipur: 503
+    response = await agent.ask("Is it ok to run in Jaipur tomorrow morning?")
+
+    assert response.kind == "answer" and response.cards and response.air_quality == []
+    assert "Jaipur | AIR QUALITY UNAVAILABLE: OpenWeather request failed (HTTP 503)." in answer.calls[0][-1].content
+    assert response.debug.error is None
+
+
+async def test_air_quality_only_question_skips_the_weather(aq_world) -> None:
+    agent, _, answer = make_agent(q(intent="air_quality", locations=["Delhi"], date_expr="tomorrow"), now=AQ_NOW)
+    response = await agent.ask("Delhi mein kal pollution kaisa rahega?")
+
+    assert [t.name for t in response.debug.tool_calls] == ["get_air_quality_for_windows"]
+    assert aq_world.call_count == 0 and response.cards == []
+    [air_card] = response.air_quality
+    assert len(air_card.points) == 24
+    assert "FORECAST, hourly |" not in answer.calls[0][-1].content  # no weather observation
+
+
+async def test_air_quality_only_beyond_the_forecast_says_so(aq_world) -> None:
+    agent, _, _ = make_agent(q(intent="air_quality", locations=["Delhi"], date_expr="next_tuesday"), now=AQ_NOW)
+    response = await agent.ask("How will Delhi's air be next Tuesday?")
+    assert (response.kind, response.text) == ("error", graph_module.AIR_OUT_OF_RANGE_TEXT)
+    assert "OutOfRangeError" in response.debug.error
+
+
+async def test_air_quality_beyond_its_forecast_does_not_block_the_weather(aq_world) -> None:
+    agent, _, answer = make_agent(run_q(date_expr="next_monday", time_expr="morning"), now=AQ_NOW)  # 26 Oct
+    response = await agent.ask("Can I run in Delhi on Monday morning?")
+    assert response.kind == "answer" and response.cards and not response.air_quality
+    assert "AIR QUALITY UNAVAILABLE: Air quality forecasts are available up to 4 days ahead." in (
+        answer.calls[0][-1].content)
+
+
+async def test_weather_question_mentioning_smog_includes_air_quality(aq_world) -> None:
+    agent, _, _ = make_agent(q(locations=["Delhi"], date_expr="tomorrow", include_air_quality=True), now=AQ_NOW)
+    response = await agent.ask("Will it be hot in Delhi tomorrow, and how bad is the smog?")
+    assert response.cards and response.air_quality
+
+
+async def test_plain_weather_and_clothing_questions_skip_air_quality(aq_world) -> None:
+    for understanding in (q(locations=["Delhi"], date_expr="tomorrow"),
+                          q(intent="clothing_recommendation", locations=["Delhi"], date_expr="tomorrow")):
+        agent, _, _ = make_agent(understanding, now=AQ_NOW)
+        response = await agent.ask("Delhi tomorrow")
+        assert [t.name for t in response.debug.tool_calls] == ["get_weather_for_windows"]
+        assert response.air_quality == []
+
+
+async def test_follow_up_keeps_air_quality_and_uses_owm_scale_abroad(aq_world) -> None:
+    agent, _, answer = make_agent(run_q(), q(locations=["Paris"], is_follow_up=True),
+                                  answer=RecordingChatModel(replies=["Delhi reply.", "Paris reply."]), now=AQ_NOW)
+    await agent.ask("Is it ok to run in Delhi tomorrow morning?")
+    response = await agent.ask("and Paris?")
+
+    [air_card] = response.air_quality
+    assert air_card.location.country_code == "fr"
+    prompt = answer.calls[1][-1].content
+    assert "Paris, France | AIR QUALITY FORECAST, hourly (OpenWeather 1-5 scale, not NAQI)" in prompt
+    assert "NAQI" not in prompt.split("AIR QUALITY FORECAST")[1].split("|", 1)[1]  # no NAQI shown for Paris
+
+
+async def test_answer_failure_template_includes_air_quality(aq_world) -> None:
+    failing = RecordingChatModel(replies=[ModelRateLimitError("429 RESOURCE_EXHAUSTED")] * 4)
+    agent, _, _ = make_agent(run_q(), answer=failing, now=AQ_NOW)
+    response = await agent.ask("Is it ok to run in Delhi tomorrow morning?")
+
+    s = response.air_quality[0].summary
+    assert response.debug.answer_fallback
+    assert (f"New Delhi air quality, Fri 23 Oct, 06:00-12:00 IST: NAQI up to {s.naqi_max} ({s.naqi_category}, "
+            f"mainly {s.dominant_pollutant}).") in response.text

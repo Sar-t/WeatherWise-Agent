@@ -6,7 +6,7 @@
 # --- weather -----------------------------------------------------------------
 - id: weather_basic
   message: Will it rain in Jaipur tomorrow evening?
-  expected: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: evening}
+  expected: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: evening, include_air_quality: null}
 
 - id: weather_current_location
   message: How hot will it get this afternoon?
@@ -128,3 +128,27 @@
   previous: {intent: weather, locations: [Jaipur], date_expr: tomorrow}
   message: Is it a good day for a picnic in Lucknow this weekend?
   expected: {is_follow_up: false, intent: activity_recommendation, activity: picnic, locations: [Lucknow], date_expr: this_weekend}
+
+# --- air quality -------------------------------------------------------------
+# include_air_quality is what the LLM sets for a mention; code adds it for some intents
+# after extraction (not checked here). null and false count as the same.
+- id: aq_hinglish_aqi
+  message: Noida ka AQI aaj kitna hai?
+  expected: {intent: air_quality, locations: [Noida], date_expr: today, include_air_quality: true}
+
+- id: aq_mask_tonight
+  message: Should I wear an N95 mask in Gurgaon tonight?
+  expected: {intent: air_quality, locations: [Gurgaon], date_expr: today, time_expr: night, include_air_quality: true}
+
+- id: aq_weather_plus_smog
+  message: Kal Lucknow mein garmi hogi? Aur smog kitna rahega?
+  expected: {intent: weather, locations: [Lucknow], date_expr: tomorrow, include_air_quality: true}
+
+- id: aq_activity_haze
+  message: Is it safe to go cycling in Kanpur this evening with all this haze?
+  expected: {intent: activity_recommendation, activity: cycling, locations: [Kanpur], date_expr: today, time_expr: evening, include_air_quality: true}
+
+- id: aq_followup_city
+  previous: {intent: air_quality, locations: [Delhi], date_expr: today, include_air_quality: true}
+  message: and Mumbai?
+  expected: {is_follow_up: true, intent: air_quality, locations: [Mumbai], include_air_quality: true}

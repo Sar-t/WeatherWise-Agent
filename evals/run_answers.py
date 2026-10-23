@@ -27,20 +27,33 @@ from backend.agent.graph import Agent, build_graph
 from backend.agent.llm import get_llm, message_text
 from backend.agent.schemas import QueryUnderstanding, UserContext
 from backend.core.config import get_settings
-from backend.services import weather
+from backend.services import air_quality, weather
 from backend.services.cache import InMemoryCache
 from backend.services.weather import DAY_SUMMARY_URL, ONECALL_URL, TIMEMACHINE_URL
-from backend.tests.agent_fakes import QueuedExtractor, fixture_now, install_fake_geocoding, mock_onecall
+from backend.tests.agent_fakes import (
+    ONECALL_BY_LAT,
+    ONECALL_BY_LAT_AQ,
+    QueuedExtractor,
+    fixture_now,
+    install_fake_geocoding,
+    mock_air_quality,
+    onecall,
+)
 
 ROOT = Path(__file__).parent
 CASES = ROOT / "answer_cases.yaml"
 CACHE = ROOT / ".cache"
 FIXTURES = ROOT.parent / "backend" / "tests" / "fixtures"
-NOWS = {"jaipur": fixture_now("jaipur"), "cities": fixture_now("mumbai")}
+NOWS = {"jaipur": fixture_now("jaipur"), "cities": fixture_now("mumbai"), "aq": fixture_now("delhi_aq")}
+_onecall_by_lat: dict[str, str] = {}  # per-case override of which onecall recording a latitude gets
 
 _NUM = r"-?\d+(?:\.\d+)?"
 # "27°C", "27 °C", "27°", "35%", and ranges like "22-27°C", "22 to 27°C", "22 se 27°C" (both ends count).
 _READING = re.compile(rf"(?<![\d:.])({_NUM})(?:\s*(?:-|–|to|se)\s*({_NUM}))?\s*(°\s*C|°|%)")  # not "06:30"
+# Air quality: "NAQI 230", "AQI of 230", "air quality index is 230"; "2/5"; "63 µg/m³".
+_NAQI = re.compile(r"\b(?:NAQI|AQI|air quality index)\D{0,12}?(?<![\d.])(\d{1,3})(?![\d./])", re.I)
+_OWM_LEVEL = re.compile(r"(?<![\d.])([1-5])\s*/\s*5\b")
+_PM = re.compile(rf"(?<![\d.])({_NUM})\s*(?:µ|μ|u)g\s*/\s*m(?:³|3)")
 _DERIVED_AFTER = re.compile(r"^\W*(?:\w+\W+){0,2}?(warmer|cooler|hotter|colder|higher|lower|more|less|difference|"
                             r"drop|rise|apart|up|down)\b", re.I)
 _DERIVED_BEFORE = re.compile(r"\b(by|difference of|differ by)\s*$", re.I)
@@ -100,19 +113,21 @@ class Grounding:
 
 
 def readings(text: str) -> list[tuple[float, str, int, int]]:
-    """(value, unit, start, end) for each temperature/percentage in `text`."""
+    """(value, unit, start, end) for each temperature, percentage and air quality figure in `text`."""
     out = []
     for m in _READING.finditer(text):
         unit = "%" if m.group(3) == "%" else "°C"
         for g in (1, 2):
             if m.group(g) is not None:
                 out.append((float(m.group(g)), unit, m.start(), m.end()))
+    for pattern, unit in ((_NAQI, "NAQI"), (_OWM_LEVEL, "/5"), (_PM, "µg/m³")):
+        out += [(float(m.group(1)), unit, m.start(), m.end()) for m in pattern.finditer(text)]
     return out
 
 
 def check_grounding(reply: str, observations: str) -> Grounding:
-    """Every °C / % reading in the reply must appear in the observations, which are already rounded
-    for display (whole °C, rain chance to 5%), so the match is exact."""
+    """Every °C / % / NAQI / N-of-5 / µg/m³ figure in the reply must appear in the observations, which
+    are already rounded for display (whole °C, rain chance to 5%, whole µg/m³), so the match is exact."""
     known = {(unit, value) for value, unit, _, _ in readings(observations)}
     result = Grounding()
     for value, unit, start, end in readings(reply):
@@ -125,15 +140,26 @@ def check_grounding(reply: str, observations: str) -> Grounding:
 
 
 def install_recorded_weather(router: respx.MockRouter) -> None:
-    mock_onecall(router)
+    """Recorded weather and air quality. Air quality exists for Delhi and Paris only (others: HTTP 503)."""
+
+    def onecall_for(request: httpx.Request) -> httpx.Response:
+        name = (ONECALL_BY_LAT | _onecall_by_lat).get(request.url.params["lat"], "jaipur")
+        return httpx.Response(200, json=onecall(name))
+
+    router.get(ONECALL_URL).mock(side_effect=onecall_for)
     for url, name in ((TIMEMACHINE_URL, "timemachine"), (DAY_SUMMARY_URL, "day_summary")):
         data = json.loads((FIXTURES / f"openweather_{name}_jaipur.json").read_text(encoding="utf-8"))
         router.get(url).mock(return_value=httpx.Response(200, json=data))
+    mock_air_quality(router)
 
 
 async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], list[str], list[str]]:
     """Returns (failures, warnings, reply lines) for one case."""
     weather.cache = InMemoryCache()
+    air_quality.cache = InMemoryCache()
+    _onecall_by_lat.clear()
+    if case["now"] == "aq":  # weather recorded alongside the air quality fixtures
+        _onecall_by_lat.update(ONECALL_BY_LAT_AQ)
     turns = case["turns"]
     extractor = QueuedExtractor(*(QueryUnderstanding(**t["understanding"]) for t in turns))
     ctx = UserContext(now=NOWS[case["now"]], **case.get("device", {}))
@@ -158,8 +184,13 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
             failures.append(f"{tag}none of {names} named in the reply")
         observations = answer_llm.last_prompt[-1].content if answer_llm.last_prompt else ""
         if not readings(response.text):
-            failures.append(f"{tag}no °C or % figure in the reply (expected key facts with units)")
-        failures += [f"{tag}style: {p}" for p in check_style(response.text, is_comparison(response.cards))]
+            failures.append(f"{tag}no °C, %, NAQI or µg/m³ figure in the reply (expected key facts with units)")
+        failures += [f"{tag}doesn't mention {word!r}" for word in expect.get("mentions", [])
+                     if word.lower() not in response.text.lower()]
+        failures += [f"{tag}mentions {word!r}" for word in expect.get("not_mentions", [])
+                     if word.lower() in response.text.lower()]
+        failures += [f"{tag}style: {p}" for p in check_style(response.text,
+                                                             is_comparison(response.cards, response.air_quality))]
         grounding = check_grounding(response.text, observations)
         failures += [f"{tag}ungrounded reading {f}" for f in grounding.failures]
         warnings += [f"{tag}derived number {w}" for w in grounding.warnings]

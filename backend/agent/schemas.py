@@ -7,10 +7,11 @@ from pydantic import BaseModel, Field, model_validator
 
 from backend.services.date_resolver import DATE_EXPRESSIONS
 from backend.services.geocoding import timezone_at
-from backend.services.models import Location, TimeWindow, WeatherResult
+from backend.services.models import AirQualityResult, Location, TimeWindow, WeatherResult
 
 Intent = Literal[
     "weather",
+    "air_quality",
     "activity_recommendation",
     "travel_recommendation",
     "clothing_recommendation",
@@ -23,6 +24,8 @@ RecommendationType = Literal["suitability", "best_time", "avoid", "packing", "tr
 DateExpr = Literal[tuple(DATE_EXPRESSIONS)]  # type: ignore[valid-type]
 
 DEFAULT_TIMEZONE = "Asia/Kolkata"  # users are mainly in India
+# Intents that always get air quality alongside the weather (air_quality gets it instead of weather).
+AIR_QUALITY_INTENTS = {"air_quality", "activity_recommendation", "travel_recommendation"}
 
 
 class QueryUnderstanding(BaseModel):
@@ -45,6 +48,11 @@ class QueryUnderstanding(BaseModel):
     recommendation_type: RecommendationType | None = Field(
         default=None, description="Kind of recommendation wanted, if any."
     )
+    include_air_quality: bool | None = Field(
+        default=None,
+        description="True if the message mentions air quality, pollution, smog, haze, AQI, masks or breathing; "
+        "else null.",
+    )
     is_follow_up: bool = Field(
         default=False,
         description="True if the message only changes or answers something about the previous query.",
@@ -55,6 +63,10 @@ class QueryUnderstanding(BaseModel):
     clarification_question: str | None = Field(
         default=None, description="Short question to ask the user when needs_clarification is true."
     )
+
+
+def wants_air_quality(u: QueryUnderstanding) -> bool:
+    return bool(u.include_air_quality) or u.intent in AIR_QUALITY_INTENTS
 
 
 class UserContext(BaseModel):
@@ -144,4 +156,5 @@ class AgentResponse(BaseModel):
     text: str
     kind: Literal["answer", "clarification", "decline", "error"]
     cards: list[WeatherResult] = Field(default_factory=list)  # structured data for a frontend
+    air_quality: list[AirQualityResult] = Field(default_factory=list)  # air quality cards, when fetched
     debug: AgentDebug = Field(default_factory=AgentDebug)

@@ -75,16 +75,43 @@ def fixture_now(name: str) -> datetime:
 
 
 ONECALL_BY_LAT = {"26.92": "jaipur", "19.06": "mumbai", "28.61": "delhi"}  # rounded lat -> fixture
+# Recorded back to back with the air quality fixtures (Thu 22 Oct 2026, ~12:00 IST).
+ONECALL_BY_LAT_AQ = {"28.61": "delhi_aq", "48.85": "paris_aq"}
+AIR_BY_LAT = {"28.61": "delhi", "48.85": "paris"}
 
 
-def mock_onecall(respx_mock, default: str = "jaipur"):
+def mock_onecall(respx_mock, default: str = "jaipur", by_lat: dict[str, str] | None = None):
     """Serve real recorded onecall responses, picked by the request's rounded latitude."""
+    table = ONECALL_BY_LAT | (by_lat or {})
 
     def respond(request: httpx.Request) -> httpx.Response:
-        name = ONECALL_BY_LAT.get(request.url.params["lat"], default)
+        name = table.get(request.url.params["lat"], default)
         return httpx.Response(200, json=onecall(name))
 
     return respx_mock.get(ONECALL_URL).mock(side_effect=respond)
+
+
+def air(kind: str, name: str) -> dict:
+    return json.loads((FIXTURES / f"openweather_air_{kind}_{name}.json").read_text(encoding="utf-8"))
+
+
+def mock_air_quality(respx_mock) -> None:
+    """Serve recorded air quality for Delhi and Paris. Other places have no recording: HTTP 503."""
+    from backend.services.air_quality import CURRENT_URL, FORECAST_URL, HISTORY_URL
+
+    def responder(kind: str):
+        def respond(request: httpx.Request) -> httpx.Response:
+            name = AIR_BY_LAT.get(request.url.params["lat"])
+            return httpx.Response(200, json=air(kind, name)) if name else httpx.Response(503)
+        return respond
+
+    for url, kind in ((CURRENT_URL, "current"), (FORECAST_URL, "forecast"), (HISTORY_URL, "history")):
+        respx_mock.get(url).mock(side_effect=responder(kind))
+
+
+def aq_fixture_now(name: str = "delhi_aq") -> datetime:
+    """When the air quality fixtures were recorded, in IST."""
+    return fixture_now(name)
 
 
 SEARCH_FIXTURES = {

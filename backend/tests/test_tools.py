@@ -38,6 +38,27 @@ async def test_tools_have_names_descriptions_and_llm_safe_schemas() -> None:
     ]  # `now` is injected by code, never chosen by an LLM
 
 
+async def test_air_quality_tool_returns_observation_and_cards(respx_mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import datetime
+
+    from backend.agent.tools import get_air_quality_for_windows
+    from backend.services import air_quality
+    from backend.tests.agent_fakes import mock_air_quality
+
+    monkeypatch.setattr(air_quality, "cache", InMemoryCache())
+    mock_air_quality(respx_mock)
+    delhi = candidates("geoapify_search_delhi_city.json")[0]
+    windows = [TimeWindow(start=datetime(2026, 10, 23, h, tzinfo=IST), end=datetime(2026, 10, 23, h + 3, tzinfo=IST))
+               for h in (6, 17)]
+    message = await get_air_quality_for_windows.ainvoke(as_call(
+        get_air_quality_for_windows, location=delhi, windows=windows, now=fixture_now("delhi_aq")))
+
+    assert [len(r.points) for r in message.artifact] == [3, 3]
+    assert message.content.count("New Delhi | AIR QUALITY FORECAST, hourly (India NAQI, CPCB)") == 2
+    assert list(get_air_quality_for_windows.tool_call_schema.model_json_schema()["properties"]) == [
+        "location", "windows"]
+
+
 async def test_geocode_place_lists_candidates() -> None:
     message = await geocode_place.ainvoke(as_call(geocode_place, query="Aurangabad"))
     lines = message.content.splitlines()

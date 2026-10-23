@@ -107,6 +107,27 @@ async def test_new_question_does_not_inherit_old_slots(services: FakeServices) -
     assert (result.understanding.intent, result.understanding.activity) == ("weather", None)
 
 
+@pytest.mark.parametrize("intent, flagged", [
+    ("air_quality", True), ("activity_recommendation", True), ("travel_recommendation", True),
+    ("weather", None), ("clothing_recommendation", None), ("comparison", None),
+])
+async def test_code_turns_on_air_quality_for_some_intents(services: FakeServices, intent: str,
+                                                          flagged: bool | None) -> None:
+    conversation = Conversation(CTX, FakeExtractor(QueryUnderstanding(intent=intent, locations=["Jaipur"])))
+    result = await conversation.handle("q")
+    assert result.understanding.include_air_quality is flagged
+
+
+async def test_llm_air_quality_flag_is_kept_and_carries_into_follow_ups(services: FakeServices) -> None:
+    extractor = FakeExtractor(weather(locations=["Jaipur"], include_air_quality=True),
+                              weather(locations=["Delhi"], is_follow_up=True),
+                              weather(locations=["Mumbai"]))
+    conversation = Conversation(CTX, extractor)
+    assert (await conversation.handle("Jaipur weather and smog?")).understanding.include_air_quality
+    assert (await conversation.handle("and Delhi?")).understanding.include_air_quality  # follow-up keeps it
+    assert (await conversation.handle("Mumbai weather")).understanding.include_air_quality is None  # new query
+
+
 async def test_garbled_message_keeps_previous_query(services: FakeServices) -> None:
     extractor = FakeExtractor(weather(locations=["Jaipur"]), QueryUnderstanding(intent="unclear"),
                               weather(date_expr="tomorrow", is_follow_up=True))

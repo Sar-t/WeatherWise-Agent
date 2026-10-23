@@ -158,6 +158,81 @@ async def test_current_observation(jaipur_onecall) -> None:
     assert (p.temp_c, p.feels_like_c) == (25.03, 24.95)  # the card keeps the precise values
 
 
+# --- air quality ---------------------------------------------------------------
+
+
+def air_result(country_code: str = "in", points=None, granularity: str = "hourly", **summary):
+    from backend.services.air_quality import summarize as summarize_points
+    from backend.services.models import AirComponents, AirQualityPoint, AirQualityResult
+
+    if points is None:
+        points = [AirQualityPoint(time=ist(23, 6 + i), components=AirComponents(pm2_5=60.4 + i, pm10=108.6),
+                                  owm_aqi=3, naqi=n, naqi_category=c, dominant_pollutant="PM2.5")
+                  for i, (n, c) in enumerate([(101, "Moderately Polluted"), (230, "Poor"), (97, "Satisfactory")])]
+    location = JAIPUR if country_code == "in" else JAIPUR.model_copy(
+        update={"country_code": country_code, "country": "France", "name": "Paris", "city": None})
+    s = summarize_points(points).model_copy(update=summary)
+    return AirQualityResult(location=location, window=TimeWindow(start=ist(23, 6), end=ist(23, 9)),
+                            granularity=granularity, points=points, summary=s, fetched_at=ist(22, 12))
+
+
+def test_air_observation_india_uses_naqi_and_labels_pm_as_concentrations() -> None:
+    from backend.agent.observations import summarize_air
+
+    lines = summarize_air(air_result()).splitlines()
+    assert lines[0] == "Jaipur | AIR QUALITY FORECAST, hourly (India NAQI, CPCB) | Fri 23 Oct, 06:00-09:00 IST"
+    assert lines[2] == "- Fri 06:00: NAQI 101, Moderately Polluted, PM2.5"
+    assert lines[5] == ("Summary of 3 hours: worst NAQI 230, Poor, PM2.5 at Fri 07:00; "
+                        "best NAQI 97, Satisfactory, PM2.5")
+    assert lines[6] == "PM readings (hourly concentrations, not the index): PM2.5 averages 61 µg/m³, PM10 averages 109 µg/m³"
+
+
+def test_air_observation_abroad_uses_openweather_scale_not_naqi() -> None:
+    from backend.agent.observations import summarize_air
+
+    text = summarize_air(air_result("fr"))
+    assert "Paris, France | AIR QUALITY FORECAST, hourly (OpenWeather 1-5 scale, not NAQI)" in text
+    assert "- Fri 06:00: 3/5 Moderate" in text and "worst 3/5 Moderate at Fri 06:00" in text
+    assert "NAQI 101" not in text
+
+
+def test_air_observation_india_without_naqi_falls_back_to_owm_with_reason() -> None:
+    from backend.agent.observations import summarize_air
+    from backend.services.models import AirComponents, AirQualityPoint
+
+    points = [AirQualityPoint(time=ist(23, 6), components=AirComponents(pm2_5=40), owm_aqi=2,
+                              naqi_reason="only 1 pollutant(s) available; NAQI needs 3")]
+    text = summarize_air(air_result(points=points, granularity="current"))
+    assert "AIR QUALITY NOW (observed) (OpenWeather 1-5 scale, not NAQI)" in text
+    assert "Now: 2/5 Fair" in text and "PM2.5 40 µg/m³" in text  # one reading: no "averages"
+
+
+def test_air_observation_marks_indicative_naqi_and_past_data() -> None:
+    from backend.agent.observations import summarize_air
+
+    text = summarize_air(air_result(granularity="historical", indicative=True))
+    assert "PAST AIR QUALITY (observed, not a forecast)" in text
+    assert "NAQI is indicative here" in text
+
+
+def test_long_air_observation_is_sampled_under_the_cap() -> None:
+    from backend.agent.observations import AIR_MAX_CHARS, summarize_air
+    from backend.services.models import AirComponents, AirQualityPoint
+
+    points = [AirQualityPoint(time=ist(23) + timedelta(hours=h), components=AirComponents(pm2_5=50), owm_aqi=3,
+                              naqi=150 + h, naqi_category="Moderately Polluted", dominant_pollutant="PM10")
+              for h in range(72)]
+    text = summarize_air(air_result(points=points))
+    assert len(text) <= AIR_MAX_CHARS and "Summary of 72 hours: worst NAQI 221" in text
+
+
+def test_air_unavailable_note() -> None:
+    from backend.agent.observations import air_unavailable
+
+    assert air_unavailable(BANDRA_WEST, "OpenWeather request failed (HTTP 503).") == (
+        "Bandra West, Mumbai | AIR QUALITY UNAVAILABLE: OpenWeather request failed (HTTP 503).")
+
+
 @pytest.mark.parametrize("fraction, expected", [(0.0, "0%"), (0.04, "5%"), (0.024, "0%"), (0.025, "5%"),
                                                 (0.26, "25%"), (0.775, "80%"), (1.0, "100%")])
 def test_rain_chance_rounds_to_nearest_5(fraction: float, expected: str) -> None:

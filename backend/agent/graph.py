@@ -26,6 +26,7 @@ from backend.agent.extraction import extract
 from backend.agent.llm import LLMConfigError, LLMRateLimitError, LLMUnavailableError
 from backend.agent.memory import Extractor, MemoryState, Turn, record, understand
 from backend.agent.resolution import resolve_query
+from backend.agent.observations import air_unavailable
 from backend.agent.schemas import (
     AgentDebug,
     AgentResponse,
@@ -34,15 +35,23 @@ from backend.agent.schemas import (
     Target,
     ToolCallInfo,
     UserContext,
+    wants_air_quality,
 )
-from backend.agent.tools import describe_args, get_current_weather, get_weather_for_windows
+from backend.agent.tools import (
+    describe_args,
+    get_air_quality_for_windows,
+    get_current_weather,
+    get_weather_for_windows,
+)
 from backend.services import models
-from backend.services.errors import OutOfRangeError, UpstreamAPIError
-from backend.services.models import WeatherResult
+from backend.services.errors import OutOfRangeError, UpstreamAPIError, WeatherWiseError
+from backend.services.models import AirQualityResult, WeatherResult
 
 log = logging.getLogger(__name__)
 
 OUT_OF_RANGE_TEXT = "I can only forecast up to 8 days ahead. Could you pick a day within the next week?"
+AIR_OUT_OF_RANGE_TEXT = ("I can only forecast air quality up to 4 days ahead. "
+                         "Could you pick a day within the next 4 days?")
 UPSTREAM_TEXT = "Weather data is temporarily unavailable, please try again."
 BUSY_TEXT = "The assistant is busy right now. Please try again in a minute."
 CONFIG_TEXT = "The assistant isn't set up yet (missing model name or API key)."
@@ -58,7 +67,9 @@ _STATE_TYPES = [
     for name in ("QueryUnderstanding", "ResolvedQuery", "Clarification", "Target", "AgentResponse", "AgentDebug",
                  "ToolCallInfo")
 ] + [(models.__name__, name) for name in ("Location", "TimeWindow", "WeatherResult", "WeatherPoint",
-                                          "DailyWeather", "WeatherAlert")] + [("backend.agent.memory", "MemoryState")]
+                                          "DailyWeather", "WeatherAlert", "SunTimes", "AirQualityResult",
+                                          "AirQualityPoint", "AirComponents", "AirQualitySummary")
+       ] + [("backend.agent.memory", "MemoryState")]
 
 
 class AgentState(TypedDict, total=False):
@@ -68,6 +79,7 @@ class AgentState(TypedDict, total=False):
     remember: bool
     resolved: ResolvedQuery
     cards: list[WeatherResult]
+    air_cards: list[AirQualityResult]
     observations: list[str]
     response: AgentResponse | None
     debug: AgentDebug
@@ -91,9 +103,11 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
 
     async def fetch_node(state: AgentState, config: RunnableConfig) -> dict:
         ctx, resolved, debug = _ctx(config), state["resolved"], state["debug"]
-        with_current = resolved.date_expr == "today" and resolved.understanding.time_expr is None
+        air_only = resolved.understanding.intent == "air_quality"
+        with_air = wants_air_quality(resolved.understanding)
+        with_current = not air_only and resolved.date_expr == "today" and resolved.understanding.time_expr is None
 
-        async def fetch_target(target: Target) -> list[ToolMessage]:
+        async def weather_for(target: Target) -> list[ToolMessage]:
             # Sequential within a place so the current-conditions call reuses the cached onecall.
             messages = [await _call_tool(get_weather_for_windows, debug, location=target.location,
                                          windows=target.windows, time_expr=resolved.time_expr, now=ctx.now)]
@@ -101,24 +115,55 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
                 messages.insert(0, await _call_tool(get_current_weather, debug, location=target.location))
             return messages
 
-        per_target = await asyncio.gather(*(fetch_target(t) for t in resolved.targets))  # places in parallel
-        observations, cards = [], []
-        for message in (m for messages in per_target for m in messages):
-            observations.append(message.content)
-            cards += message.artifact if isinstance(message.artifact, list) else [message.artifact]
-        return {"observations": observations, "cards": cards, "debug": debug}
+        async def air_for(target: Target) -> ToolMessage | str:
+            """The air quality tool message, or a note saying why it's missing (never blocks the weather)."""
+            try:
+                return await _call_tool(get_air_quality_for_windows, debug, location=target.location,
+                                        windows=target.windows, now=ctx.now)
+            except WeatherWiseError as exc:
+                if air_only:
+                    raise
+                log.warning("air quality unavailable", extra={"error": f"{type(exc).__name__}: {exc}"})
+                return air_unavailable(target.location, str(exc))
+
+        async def fetch_target(target: Target) -> tuple[list[ToolMessage], ToolMessage | str | None]:
+            # Weather and air quality for a place in parallel; an air-quality-only question skips the weather.
+            return await asyncio.gather(_value([]) if air_only else weather_for(target),
+                                        air_for(target) if with_air else _value(None))
+
+        try:
+            per_target = await asyncio.gather(*(fetch_target(t) for t in resolved.targets))  # places in parallel
+        except OutOfRangeError as exc:
+            if not air_only:
+                raise
+            response = _error_response(exc, debug)
+            return {"response": response.model_copy(update={"text": AIR_OUT_OF_RANGE_TEXT})}
+
+        observations, cards, air_cards = [], [], []
+        for weather_messages, air in per_target:
+            for message in weather_messages:
+                observations.append(message.content)
+                cards += message.artifact if isinstance(message.artifact, list) else [message.artifact]
+            if isinstance(air, str):
+                observations.append(air)
+            elif air is not None:
+                observations.append(air.content)
+                air_cards += air.artifact
+        return {"observations": observations, "cards": cards, "air_cards": air_cards, "debug": debug}
 
     async def answer_node(state: AgentState, config: RunnableConfig) -> dict:
         debug = state["debug"]
         ctx = _ctx(config)
         now = (ctx.now or datetime.now(ZoneInfo(ctx.timezone))).astimezone(ZoneInfo(ctx.timezone))
+        air_cards = state.get("air_cards") or []
         answer = await generate_answer(state["message"], state["understanding"], state["observations"],
-                                       state["cards"], llm=answer_llm, now=now)
+                                       state["cards"], llm=answer_llm, now=now, air_cards=air_cards)
         debug.llm_calls += 1
         debug.answer_fallback = answer.fallback
         if answer.error:
             debug.error = answer.error
-        return {"response": AgentResponse(text=answer.text, kind="answer", cards=state["cards"], debug=debug)}
+        return {"response": AgentResponse(text=answer.text, kind="answer", cards=state["cards"],
+                                          air_quality=air_cards, debug=debug)}
 
     async def ask_node(state: AgentState, config: RunnableConfig) -> dict:
         return {"response": AgentResponse(text=state["resolved"].clarification.question, kind="clarification",
@@ -151,7 +196,8 @@ class Agent:
 
     async def ask(self, message: str) -> AgentResponse:
         started = time.perf_counter()
-        turn_input = {"message": message, "response": None, "debug": AgentDebug(), "cards": [], "observations": []}
+        turn_input = {"message": message, "response": None, "debug": AgentDebug(), "cards": [], "air_cards": [],
+                      "observations": []}
         config = {"configurable": {"thread_id": self.thread_id, "ctx": self.ctx}}
         state = await self.graph.ainvoke(turn_input, config)
         response = state["response"]
@@ -164,6 +210,11 @@ class Agent:
 
 def _ctx(config: RunnableConfig) -> UserContext:
     return config["configurable"]["ctx"]
+
+
+async def _value(value: Any) -> Any:
+    """An awaitable that just returns `value`, to keep asyncio.gather slots uniform."""
+    return value
 
 
 def _route(state: AgentState) -> str:

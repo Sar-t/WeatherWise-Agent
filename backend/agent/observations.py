@@ -8,10 +8,20 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from backend.services.models import Location, TimeWindow, WeatherAlert, WeatherPoint, WeatherResult
+from backend.services.models import (
+    AirQualityPoint,
+    AirQualityResult,
+    Location,
+    TimeWindow,
+    WeatherAlert,
+    WeatherPoint,
+    WeatherResult,
+)
 
 MAX_CHARS = 1500
+AIR_MAX_CHARS = 1000
 ALERT_CHARS = 300
+OWM_AQI_NAMES = {1: "Good", 2: "Fair", 3: "Moderate", 4: "Poor", 5: "Very Poor"}  # OpenWeather's 1-5 scale
 
 # Which DailyWeather temperature answers "what will the <time of day> be like".
 PART_OF_DAY = {"morning": "temp_morning_c", "afternoon": "temp_day_c", "evening": "temp_evening_c",
@@ -71,6 +81,20 @@ def summarize(result: WeatherResult, time_expr: str | None = None, max_chars: in
             return text
     text = _render(result, time_expr, hour_step=None, alert_chars=100)
     return text if len(text) <= max_chars else text[: max_chars - 1] + "…"
+
+
+def summarize_air(result: AirQualityResult, max_chars: int = AIR_MAX_CHARS) -> str:
+    """One air quality observation: India's NAQI where we have it, else OpenWeather's 1-5 scale."""
+    for step in (1, 2, 3, None):
+        text = _render_air(result, step)
+        if len(text) <= max_chars:
+            return text
+    return text[: max_chars - 1] + "…"
+
+
+def air_unavailable(location: Location, reason: str) -> str:
+    """Tells the answer model air quality was asked for but couldn't be fetched."""
+    return f"{place_name(location)} | AIR QUALITY UNAVAILABLE: {reason}"
 
 
 # --- rendering -------------------------------------------------------------
@@ -152,6 +176,53 @@ def _day(d, time_expr: str | None) -> str:
     if d.summary or d.description:
         text += f". {d.summary or d.description}"
     return text
+
+
+def _render_air(result: AirQualityResult, step: int | None) -> str:
+    points = result.points
+    naqi = any(p.naqi is not None for p in points) and result.location.country_code == "in"
+    scale = "India NAQI, CPCB" if naqi else "OpenWeather 1-5 scale, not NAQI"
+    kind = {"current": "AIR QUALITY NOW (observed)", "hourly": "AIR QUALITY FORECAST, hourly",
+            "historical": "PAST AIR QUALITY (observed, not a forecast)"}[result.granularity]
+    lines = [f"{place_name(result.location)} | {kind} ({scale}) | {window_text(result.window)}"]
+    if not points:
+        return "\n".join(lines + ["No air quality readings in this window."])
+
+    level = _naqi_level if naqi else _owm_level
+    if step is not None and len(points) > 1:
+        note = {1: "", 2: " (every 2nd hour)", 3: " (every 3rd hour)"}[step]
+        header = "NAQI, category, main pollutant" if naqi else "level (1 best - 5 worst)"
+        lines.append(f"Hours{note}: time, {header}")
+        lines += [f"- {p.time:%a %H:%M}: {level(p)}" for p in points[::step]]
+    rated = [p for p in points if (p.naqi if naqi else p.owm_aqi) is not None]
+    if rated:
+        key = (lambda p: p.naqi) if naqi else (lambda p: p.owm_aqi)
+        worst, best = max(rated, key=key), min(rated, key=key)
+        span = f"worst {level(worst)} at {worst.time:%a %H:%M}"
+        if len(rated) > 1 and key(best) != key(worst):
+            span += f"; best {level(best)}"
+        lines.append(f"Summary of {len(points)} hours: {span}" if len(points) > 1 else f"Now: {level(worst)}")
+    elif points[0].naqi_reason:
+        lines.append(f"NAQI unavailable: {points[0].naqi_reason}")
+
+    pm = [f"{name} {'averages ' if len(points) > 1 else ''}{_int(value)} µg/m³"
+          for name, value in (("PM2.5", result.summary.pm2_5_avg), ("PM10", result.summary.pm10_avg))
+          if value is not None]
+    if pm:
+        lines.append(f"PM readings (hourly concentrations, not the index): {', '.join(pm)}")
+    if naqi and result.summary.indicative:
+        lines.append("Note: NAQI is indicative here (fewer hours of data than CPCB requires).")
+    return "\n".join(lines)
+
+
+def _naqi_level(p: AirQualityPoint) -> str:
+    if p.naqi is None:
+        return "NAQI n/a"
+    return f"NAQI {p.naqi}, {p.naqi_category}" + (f", {p.dominant_pollutant}" if p.dominant_pollutant else "")
+
+
+def _owm_level(p: AirQualityPoint) -> str:
+    return f"{p.owm_aqi}/5 {OWM_AQI_NAMES[p.owm_aqi]}" if p.owm_aqi is not None else "n/a"
 
 
 def _int(value: float) -> int:

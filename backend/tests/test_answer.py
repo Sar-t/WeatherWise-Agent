@@ -95,6 +95,26 @@ async def test_bullets_are_kept_for_comparisons() -> None:
     assert (await generate_answer("q", U, OBS, cards, llm=llm)).text == BULLETED
 
 
+def test_air_quality_cards_count_towards_a_comparison() -> None:
+    from backend.tests.test_observations import air_result
+
+    jaipur_air = air_result()
+    paris_air = air_result("fr").model_copy(update={"location": air_result("fr").location.model_copy(
+        update={"lat": 48.85, "lon": 2.35})})
+    assert not is_comparison([], [jaipur_air])
+    assert is_comparison([], [jaipur_air, paris_air])  # an air-quality-only comparison keeps its bullets
+
+
+def test_template_air_quality_lines() -> None:
+    from backend.tests.test_observations import air_result
+
+    text = template_answer([], [air_result(), air_result("fr")])
+    assert text.splitlines() == [
+        "Jaipur air quality, Fri 23 Oct, 06:00-09:00 IST: NAQI up to 230 (Poor, mainly PM2.5).",
+        "Paris, France air quality, Fri 23 Oct, 06:00-09:00 IST: up to 3/5 (Moderate) on OpenWeather's scale.",
+    ]
+
+
 @pytest.mark.parametrize("text, expected", [
     ("No bullets here.\nSecond line.", "No bullets here.\nSecond line."),  # untouched
     ("1. first\n2) second!", "First. Second!"),  # numbered, no lead-in

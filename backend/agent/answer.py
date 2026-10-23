@@ -10,9 +10,9 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.agent.llm import call_with_backoff, invoke, message_text
-from backend.agent.observations import hourly_stats, place_name, window_text
+from backend.agent.observations import OWM_AQI_NAMES, hourly_stats, place_name, window_text
 from backend.agent.schemas import QueryUnderstanding
-from backend.services.models import WeatherResult
+from backend.services.models import AirQualityResult, WeatherResult
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def build_messages(
         f"User message: {message}",
         f"Understood as: {slots or {'intent': understanding.intent}}",
         "",
-        "Weather observations:",
+        "Observations:",
         "\n\n".join(observations),
     ])
     return [SystemMessage(PROMPT_PATH.read_text(encoding="utf-8")), HumanMessage(body)]
@@ -55,8 +55,9 @@ async def generate_answer(
     cards: list[WeatherResult],
     llm: Any = None,
     now: datetime | None = None,
+    air_cards: list[AirQualityResult] = (),
 ) -> Answer:
-    """LLM reply grounded in `observations`; if the LLM fails, a template reply from `cards`."""
+    """LLM reply grounded in `observations`; if the LLM fails, a template reply from the cards."""
     messages = build_messages(message, understanding, observations, now)
     try:
         if llm is not None:
@@ -66,17 +67,18 @@ async def generate_answer(
         text = message_text(reply).strip()
         if not text:
             raise ValueError("empty reply from the answer model")
-        if not is_comparison(cards):
+        if not is_comparison(cards, air_cards):
             text = flatten_bullets(text)  # the prompt asks for prose; models still slip into lists
         return Answer(text, fallback=False)
     except Exception as exc:  # any LLM failure: the user still gets the key numbers
         log.warning("answer llm failed, using template", extra={"error": f"{type(exc).__name__}: {exc}"})
-        return Answer(template_answer(cards), fallback=True, error=f"{type(exc).__name__}: {exc}")
+        return Answer(template_answer(cards, air_cards), fallback=True, error=f"{type(exc).__name__}: {exc}")
 
 
-def is_comparison(cards: list[WeatherResult]) -> bool:
+def is_comparison(cards: list[WeatherResult], air_cards: list[AirQualityResult] = ()) -> bool:
     """2+ distinct place/window cards (current conditions aside), or one card spanning 2+ days."""
-    spans = {(c.location.lat, c.location.lon, c.window.start, c.window.end) for c in cards if c.granularity != "current"}
+    spans = {(c.location.lat, c.location.lon, c.window.start, c.window.end)
+             for c in [*cards, *air_cards] if c.granularity != "current"}
     return len(spans) >= 2 or any(len(c.daily) >= 2 for c in cards)
 
 
@@ -105,14 +107,27 @@ def flatten_bullets(text: str) -> str:
     return "\n\n".join(" ".join(p) for p in paragraphs if p)
 
 
-def template_answer(cards: list[WeatherResult]) -> str:
+def template_answer(cards: list[WeatherResult], air_cards: list[AirQualityResult] = ()) -> str:
     """A plain reply built in code from the same data the LLM would have seen."""
     alerts = [a for card in cards for a in card.alerts]
     lines = [f"Weather alert: {a.event} ({a.sender}), {a.start:%a %H:%M} to {a.end:%a %H:%M}." for a in
              {(a.event, a.start): a for a in alerts}.values()]
     for card in cards:
         lines.append(_card_line(card))
+    for card in air_cards:
+        lines.append(_air_line(card))
     return "\n".join(lines)
+
+
+def _air_line(card: AirQualityResult) -> str:
+    where = f"{place_name(card.location)} air quality, {window_text(card.window)}"
+    s = card.summary
+    if card.location.country_code == "in" and s.naqi_max is not None:
+        main = f", mainly {s.dominant_pollutant}" if s.dominant_pollutant else ""
+        return f"{where}: NAQI up to {s.naqi_max} ({s.naqi_category}{main})."
+    if s.owm_aqi_max is not None:
+        return f"{where}: up to {s.owm_aqi_max}/5 ({OWM_AQI_NAMES[s.owm_aqi_max]}) on OpenWeather's scale."
+    return f"{where}: no readings available."
 
 
 def _card_line(card: WeatherResult) -> str:

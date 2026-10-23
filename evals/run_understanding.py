@@ -31,6 +31,8 @@ def same(slot: str, expected: Any, actual: Any) -> bool:
         return sorted(x.strip().lower() for x in expected) == sorted(x.strip().lower() for x in actual)
     if slot == "time_expr" and expected is not None and actual is not None:
         return _window(expected) == _window(actual)
+    if slot == "include_air_quality":  # "not mentioned" may come back as null or false
+        return bool(expected) == bool(actual)
     return expected == actual
 
 

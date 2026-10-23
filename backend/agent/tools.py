@@ -9,10 +9,10 @@ from typing import Annotated
 
 from langchain_core.tools import InjectedToolArg, tool
 
-from backend.agent.observations import place_name, summarize
+from backend.agent.observations import place_name, summarize, summarize_air
 from backend.agent.resolution import option_label
-from backend.services import geocoding, weather
-from backend.services.models import Location, TimeWindow, WeatherResult
+from backend.services import air_quality, geocoding, weather
+from backend.services.models import AirQualityResult, Location, TimeWindow, WeatherResult
 
 
 @tool("geocode_place", response_format="content_and_artifact")
@@ -50,6 +50,20 @@ async def get_weather_for_windows(
     """
     results = await weather.get_weather_multi(location, windows, now=now)
     return "\n\n".join(summarize(r, time_expr) for r in results), results
+
+
+@tool("get_air_quality_for_windows", response_format="content_and_artifact")
+async def get_air_quality_for_windows(
+    location: Location,
+    windows: list[TimeWindow],
+    now: Annotated[datetime | None, InjectedToolArg] = None,
+) -> tuple[str, list[AirQualityResult]]:
+    """Hourly air quality for one location over one or more time windows (forecast up to ~4 days, or past).
+
+    India gets the national NAQI (CPCB); elsewhere OpenWeather's 1-5 scale. Windows share one request.
+    """
+    results = await air_quality.get_air_quality_multi(location, windows, now=now)
+    return "\n\n".join(summarize_air(r) for r in results), results
 
 
 def describe_args(args: dict) -> dict:

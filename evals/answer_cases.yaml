@@ -1,8 +1,10 @@
 # Answer evals: python evals/run_answers.py (real answer LLM, recorded weather; not part of pytest).
 # Extraction is NOT run: each turn gives the understanding it would produce (covered by
 # understanding_cases.yaml). `now` picks the recorded weather: jaipur = Sun 18 Oct 2026 20:17 IST,
-# cities = Thu 22 Oct 2026 11:06 IST (Mumbai and Delhi, recorded the same second).
+# cities = Thu 22 Oct 2026 11:06 IST (Mumbai and Delhi, recorded the same second),
+# aq = Thu 22 Oct 2026 12:00 IST (Delhi and Paris weather + air quality, recorded together).
 # expect.locations: at least one of these must appear in an answer.
+# expect.mentions / not_mentions: words that must / must not appear (case-insensitive).
 
 - id: weather_hourly_evening
   now: jaipur
@@ -119,6 +121,43 @@
     - message: and Delhi?
       understanding: {intent: weather, locations: [Delhi], is_follow_up: true}
       expect: {kind: answer, locations: [Delhi]}
+
+# --- air quality (now: aq = Thu 22 Oct 2026 12:00 IST, weather + air quality recorded together;
+# air quality exists for Delhi and Paris only, so Jaipur's comes back unavailable) --------------
+- id: aq_only_delhi_tomorrow
+  now: aq
+  turns:
+    - message: Delhi mein kal pollution kaisa rahega?
+      understanding: {intent: air_quality, locations: [Delhi], date_expr: tomorrow, include_air_quality: true}
+      expect: {kind: answer, locations: [Delhi], mentions: [NAQI]}
+
+- id: aq_run_delhi_morning
+  now: aq
+  turns:
+    - message: Is it a good idea to go for a run in Delhi tomorrow morning?
+      understanding: {intent: activity_recommendation, activity: running, recommendation_type: suitability, locations: [Delhi], date_expr: tomorrow, time_expr: morning}
+      expect: {kind: answer, locations: [Delhi], mentions: [NAQI]}
+
+- id: aq_paris_evening_owm_scale
+  now: aq
+  turns:
+    - message: How's the air in Paris this evening?
+      understanding: {intent: air_quality, locations: [Paris], date_expr: today, time_expr: evening, include_air_quality: true}
+      expect: {kind: answer, locations: [Paris], not_mentions: [NAQI]}
+
+- id: aq_unavailable_jaipur_cycling
+  now: jaipur
+  turns:
+    - message: Can I go cycling in Jaipur tomorrow morning?
+      understanding: {intent: activity_recommendation, activity: cycling, recommendation_type: suitability, locations: [Jaipur], date_expr: tomorrow, time_expr: morning}
+      expect: {kind: answer, locations: [Jaipur], mentions: [air quality]}
+
+- id: aq_compare_delhi_paris
+  now: aq
+  turns:
+    - message: Where is the air cleaner tomorrow, Delhi or Paris?
+      understanding: {intent: air_quality, locations: [Delhi, Paris], date_expr: tomorrow, include_air_quality: true}
+      expect: {kind: answer, locations: [Delhi, Paris], mentions: [NAQI]}
 
 # No answer-LLM call for these two: they check the routing.
 - id: ambiguous_city_asks
