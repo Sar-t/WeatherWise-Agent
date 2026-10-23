@@ -130,7 +130,8 @@ async def test_agent_error_path_never_logs_the_key(respx_mock, caplog: pytest.Lo
     respx_mock.get(weather.ONECALL_URL).mock(side_effect=httpx.ReadError(f"reset: {weather.ONECALL_URL}?appid={OW_KEY}"))
     extractor = QueuedExtractor(QueryUnderstanding(intent="weather", locations=["Jaipur"], date_expr="tomorrow"))
     agent = Agent(UserContext(now=fixture_now("jaipur")),
-                  graph=build_graph(extractor=extractor, answer_llm=RecordingChatModel()))
+                  graph=build_graph(extractor=extractor, answer_llm=RecordingChatModel(),
+                                    retriever=lambda **kwargs: []))
     with caplog.at_level(logging.DEBUG):
         response = await agent.ask("Jaipur tomorrow")
     assert response.kind == "error"

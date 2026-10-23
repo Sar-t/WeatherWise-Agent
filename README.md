@@ -61,8 +61,12 @@ allows about 20 requests per day; `EXTRACTION_MODEL` / `ANSWER_MODEL` can split 
 per message across models with separate quotas.
 
 ```bash
+python -m ingestion.build_index                              # once: official guidelines index (local model)
 python -m backend.agent.cli --lat 26.91 --lon 75.79 --debug   # --lat/--lon simulate the device
 ```
+
+Without the index the agent still answers, just without official guidance. The first start loads
+the embedding model (~30 s cold); after that, guidance adds about 35 ms to a turn.
 
 ## Evals (real LLM, run manually)
 

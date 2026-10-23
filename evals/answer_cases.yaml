@@ -209,6 +209,47 @@
       understanding: {intent: activity_recommendation, activity: running, recommendation_type: suitability, locations: [Jaipur], date_expr: tomorrow, time_expr: evening}
       expect: {kind: answer, locations: [Jaipur], mentions: [air quality]}
 
+# --- official guidance (step 3f): real local retriever, index required --------------------------
+# expect.guidance: true -> sources returned and the reply names a source; false -> neither.
+# `synthetic:` marks values that are NOT recordings: air_scale multiplies recorded PM2.5/PM10
+# (no recording has Poor air); alerts are added to the recorded forecast (none has an alert).
+- id: gd_run_delhi_poor_air_asthma
+  now: aq
+  synthetic: {air_scale: 1.8}
+  turns:
+    - message: My father has asthma, can he go for his morning run in Delhi tomorrow?
+      understanding: {intent: activity_recommendation, activity: running, recommendation_type: suitability, locations: [Delhi], date_expr: tomorrow, time_expr: morning, audience: sensitive_groups}
+      expect: {kind: answer, locations: [Delhi], mentions: [NAQI], guidance: true}
+
+- id: gd_mumbai_afternoon_walk_heat
+  now: cities
+  turns:
+    - message: Is an afternoon walk in Mumbai tomorrow okay?
+      understanding: {intent: activity_recommendation, activity: walking, recommendation_type: suitability, locations: [Mumbai], date_expr: tomorrow, time_expr: afternoon}
+      expect: {kind: answer, locations: [Mumbai], guidance: true}
+
+- id: gd_delhi_kids_precautions
+  now: aq
+  turns:
+    - message: Delhi mein pollution hai, bacchon ke liye kya precautions?
+      understanding: {intent: air_quality, locations: [Delhi], include_air_quality: true, audience: children, asks_precautions: true}
+      expect: {kind: answer, locations: [Delhi], guidance: true}
+
+- id: gd_jaipur_thunderstorm_alert
+  now: jaipur
+  synthetic: {alerts: [{event: "Thunderstorm & Lightning", hours: 36}]}
+  turns:
+    - message: Will it rain in Jaipur tomorrow morning?
+      understanding: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: morning}
+      expect: {kind: answer, locations: [Jaipur], guidance: true}
+
+- id: gd_plain_weather_no_guidance
+  now: jaipur
+  turns:
+    - message: What will the temperature be in Jaipur tomorrow evening?
+      understanding: {intent: weather, locations: [Jaipur], date_expr: tomorrow, time_expr: evening}
+      expect: {kind: answer, locations: [Jaipur], guidance: false}
+
 # No answer-LLM call for these two: they check the routing.
 - id: ambiguous_city_asks
   now: jaipur

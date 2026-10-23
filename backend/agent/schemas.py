@@ -21,6 +21,7 @@ Intent = Literal[
     "unclear",
 ]
 RecommendationType = Literal["suitability", "best_time", "avoid", "packing", "travel_timing"]
+Audience = Literal["children", "older_adults", "sensitive_groups", "pregnant", "outdoor_workers"]
 # Built from the resolver's own list so the LLM can only produce dates it can resolve.
 DateExpr = Literal[tuple(DATE_EXPRESSIONS)]  # type: ignore[valid-type]
 
@@ -53,6 +54,16 @@ class QueryUnderstanding(BaseModel):
         default=None, ge=1, le=24,
         description="How long the activity or trip lasts in whole hours, if stated ('a 3 hour hike', "
         "'2 ghante ki drive'); else null.",
+    )
+    audience: Audience | None = Field(
+        default=None,
+        description="Who the advice is for, if the user says: children ('mere bacche ke saath'), older_adults "
+        "('my parents'), sensitive_groups (asthma, heart or lung conditions), pregnant, outdoor_workers; else null.",
+    )
+    asks_precautions: bool | None = Field(
+        default=None,
+        description="True if the user asks for precautions or safety ('what precautions', 'kya dhyan rakhein', "
+        "'is it safe', 'how to stay safe'); else null.",
     )
     include_air_quality: bool | None = Field(
         default=None,
@@ -156,6 +167,14 @@ class AgentDebug(BaseModel):
     error: str | None = None  # the real error behind a kind="error" reply
 
 
+class GuidelineSource(BaseModel):
+    """An official guideline given to the answer model, for citations."""
+
+    title: str
+    source_name: str
+    source_url: str
+
+
 class AgentResponse(BaseModel):
     """The agent's reply to one message."""
 
@@ -164,4 +183,5 @@ class AgentResponse(BaseModel):
     cards: list[WeatherResult] = Field(default_factory=list)  # structured data for a frontend
     air_quality: list[AirQualityResult] = Field(default_factory=list)  # air quality cards, when fetched
     assessments: list[ActivityAssessment] = Field(default_factory=list)  # scoring results, one per place
+    sources: list[GuidelineSource] = Field(default_factory=list)  # guidelines given to the answer model
     debug: AgentDebug = Field(default_factory=AgentDebug)

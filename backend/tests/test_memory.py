@@ -61,6 +61,14 @@ def test_merge_keeps_and_overrides_duration() -> None:
     assert merge(old, weather(duration_hours=5, is_follow_up=True)).duration_hours == 5
 
 
+def test_merge_keeps_audience_and_precautions() -> None:
+    old = QueryUnderstanding(intent="activity_recommendation", locations=["Delhi"], audience="children",
+                             asks_precautions=True)
+    merged = merge(old, weather(locations=["Noida"], is_follow_up=True))
+    assert (merged.audience, merged.asks_precautions, merged.locations) == ("children", True, ["Noida"])
+    assert merge(old, weather(audience="older_adults", is_follow_up=True)).audience == "older_adults"
+
+
 def test_merge_replaces_locations() -> None:
     merged = merge(weather(locations=["Jaipur"], date_expr="tomorrow"), weather(locations=["Delhi"], is_follow_up=True))
     assert (merged.locations, merged.date_expr) == (["Delhi"], "tomorrow")

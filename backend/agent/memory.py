@@ -20,7 +20,7 @@ def merge(previous: QueryUnderstanding, new: QueryUnderstanding) -> QueryUnderst
     """New non-null (and non-empty) slots override the previous ones."""
     merged = previous.model_copy()
     for field in ("intent", "activity", "date_expr", "time_expr", "recommendation_type", "duration_hours",
-                  "include_air_quality"):
+                  "audience", "asks_precautions", "include_air_quality"):
         if (value := getattr(new, field)) is not None:
             setattr(merged, field, value)
     if new.locations:

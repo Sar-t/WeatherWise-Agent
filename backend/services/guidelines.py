@@ -26,6 +26,7 @@ class Guideline:
     source_url: str
     topics: list[str] = field(default_factory=list)
     score: float = 0.0  # cosine similarity to the query
+    severity: str = ""  # the document's severity tags, "NAQI Poor | NAQI Very Poor"
 
 
 def estimate_tokens(text: str) -> int:
@@ -59,6 +60,17 @@ def _resources() -> tuple[Any, Any]:
             _store = _store or ChromaStore(settings.vector_store_dir)
             _embedder = _embedder or SentenceTransformerEmbedder(settings.embedding_model)
         return _store, _embedder
+
+
+def warm_up() -> float:
+    """Load the embedding model and store now (e.g. at startup) instead of on the first question.
+    Returns the seconds it took."""
+    import time
+
+    started = time.perf_counter()
+    _, embedder = _resources()
+    embedder.embed_query("warm up")
+    return time.perf_counter() - started
 
 
 # --- retrieval -------------------------------------------------------------------------------
@@ -145,7 +157,7 @@ def retrieve_guidelines(
             doc_id=doc_id, title=str(hit.metadata.get("title", "")), text=hit.text,
             source_name=str(hit.metadata.get("source_name", "")), source_url=str(hit.metadata.get("source_url", "")),
             topics=[t for t in str(hit.metadata.get("topics", "")).split(",") if t],
-            score=round(hit.similarity, 4),
+            score=round(hit.similarity, 4), severity=str(hit.metadata.get("severity", "")),
         ))
         if len(results) == k:
             break

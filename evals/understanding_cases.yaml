@@ -146,6 +146,23 @@
   message: When's the best time to play football in Bengaluru this weekend?
   expected: {intent: activity_recommendation, activity: football, locations: [Bengaluru], date_expr: this_weekend, recommendation_type: best_time}
 
+# --- guidance slots: audience and precautions ----------------------------------
+- id: gd_father_asthma
+  message: My father has asthma, can he go for his morning walk in Delhi tomorrow?
+  expected: {intent: activity_recommendation, activity: walking, locations: [Delhi], date_expr: tomorrow, time_expr: morning, audience: sensitive_groups}
+
+- id: gd_kids_precautions_hinglish
+  message: Delhi mein pollution hai, bacchon ke liye kya precautions?
+  expected: {intent: air_quality, locations: [Delhi], audience: children, asks_precautions: true, include_air_quality: true}
+
+- id: gd_is_it_safe_heat
+  message: Is it safe to play cricket in Nagpur this afternoon? It's very hot.
+  expected: {intent: activity_recommendation, locations: [Nagpur], date_expr: today, time_expr: afternoon, asks_precautions: true, audience: null}
+
+- id: gd_outdoor_worker
+  message: I do delivery work outside all day, kal Hyderabad mein kya dhyan rakhun?
+  expected: {locations: [Hyderabad], date_expr: tomorrow, audience: outdoor_workers, asks_precautions: true}
+
 # --- air quality -------------------------------------------------------------
 # include_air_quality is what the LLM sets for a mention; code adds it for some intents
 # after extraction (not checked here). null and false count as the same.

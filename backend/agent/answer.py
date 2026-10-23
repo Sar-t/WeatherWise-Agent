@@ -59,6 +59,7 @@ async def generate_answer(
     now: datetime | None = None,
     air_cards: list[AirQualityResult] = (),
     assessments: list[ActivityAssessment] = (),
+    guidance_note: str | None = None,
 ) -> Answer:
     """LLM reply grounded in `observations`; if the LLM fails, a template reply from the cards."""
     messages = build_messages(message, understanding, observations, now)
@@ -75,7 +76,7 @@ async def generate_answer(
         return Answer(text, fallback=False)
     except Exception as exc:  # any LLM failure: the user still gets the key numbers
         log.warning("answer llm failed, using template", extra={"error": f"{type(exc).__name__}: {exc}"})
-        return Answer(template_answer(cards, air_cards, assessments), fallback=True,
+        return Answer(template_answer(cards, air_cards, assessments, guidance_note), fallback=True,
                       error=f"{type(exc).__name__}: {exc}")
 
 
@@ -112,7 +113,7 @@ def flatten_bullets(text: str) -> str:
 
 
 def template_answer(cards: list[WeatherResult], air_cards: list[AirQualityResult] = (),
-                    assessments: list[ActivityAssessment] = ()) -> str:
+                    assessments: list[ActivityAssessment] = (), guidance_note: str | None = None) -> str:
     """A plain reply built in code from the same data the LLM would have seen: alerts, the engine's
     verdicts and best times, then the weather and air quality."""
     alerts = [a for card in cards for a in card.alerts]
@@ -123,6 +124,8 @@ def template_answer(cards: list[WeatherResult], air_cards: list[AirQualityResult
         lines.append(_card_line(card))
     for card in air_cards:
         lines.append(_air_line(card))
+    if guidance_note:
+        lines.append(guidance_note)
     return "\n".join(lines)
 
 

@@ -24,6 +24,11 @@ Today is $weekday, $today (timezone $timezone).
   avoid ("what should I avoid"), packing ("what to pack/wear"), travel_timing ("when to leave"), else null.
 - duration_hours: how long the activity or trip lasts, in whole hours, only if stated ("a 3 hour hike"
   -> 3, "2 ghante ki drive" -> 2, "half-day trek" -> 4); else null.
+- audience: who the advice is for, only if the user says so: children ("with my kids", "mere bacche
+  ke saath"), older_adults ("my parents", "dadi ke liye"), sensitive_groups (asthma, heart or lung
+  conditions), pregnant, outdoor_workers ("I work outside", "delivery job"); else null.
+- asks_precautions: true when the user asks about precautions or safety ("what precautions", "kya
+  dhyan rakhein", "is it safe", "how to stay safe", "safe hai?"); else null.
 - include_air_quality: true when the message mentions air quality, pollution, smog, haze, AQI, masks or
   breathing, whatever the intent ("is it safe to run, the smog is bad"); else null.
 - is_follow_up: true when a previous query is given and this message only changes or answers part of it.
@@ -80,6 +85,12 @@ User: Should I wear a mask in Gurgaon tomorrow morning?
 
 User: Will it be hot in Delhi tomorrow? Also how bad is the smog?
 {"intent": "weather", "locations": ["Delhi"], "date_expr": "tomorrow", "include_air_quality": true}
+
+User: Kal subah Delhi mein bacchon ke saath park jaana hai, kya dhyan rakhein?
+{"intent": "activity_recommendation", "activity": "walking", "locations": ["Delhi"], "date_expr": "tomorrow", "time_expr": "morning", "audience": "children", "asks_precautions": true}
+
+User: My father has asthma. Is it safe for him to walk in Lucknow this evening?
+{"intent": "activity_recommendation", "activity": "walking", "locations": ["Lucknow"], "date_expr": "today", "time_expr": "evening", "recommendation_type": "suitability", "audience": "sensitive_groups", "asks_precautions": true}
 
 User: Which is cooler this weekend, Ooty or Munnar?
 {"intent": "comparison", "locations": ["Ooty", "Munnar"], "date_expr": "this_weekend"}

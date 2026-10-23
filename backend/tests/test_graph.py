@@ -1,4 +1,5 @@
 import asyncio
+import copy
 from datetime import timedelta
 
 import httpx
@@ -19,6 +20,7 @@ from backend.agent.llm import LLMRateLimitError
 from backend.agent.schemas import AgentDebug, QueryUnderstanding, UserContext
 from backend.core.config import get_settings
 from backend.services import air_quality, weather
+from backend.services import guidelines as guidelines_service
 from backend.services.cache import InMemoryCache
 from backend.services.weather import ONECALL_URL
 from backend.tests.agent_fakes import (
@@ -29,6 +31,7 @@ from backend.tests.agent_fakes import (
     install_fake_geocoding,
     mock_air_quality,
     mock_onecall,
+    onecall,
 )
 
 pytestmark = pytest.mark.anyio
@@ -60,14 +63,37 @@ def _offline(monkeypatch: pytest.MonkeyPatch, respx_mock) -> None:
         return None
 
     monkeypatch.setattr(llm, "_sleep", no_sleep)
+
+    real_calls = []  # the guidelines node swallows errors, so record and check after the test
+
+    def real_retriever_called(**kwargs):
+        real_calls.append(kwargs)
+        return []
+
+    monkeypatch.setattr(guidelines_service, "retrieve_guidelines", real_retriever_called)
     yield
     get_settings.cache_clear()
+    assert not real_calls, "pytest must not use the real embedding model; pass a FakeRetriever"
 
 
-def make_agent(*understandings, answer: RecordingChatModel | None = None, now=JAIPUR_NOW, **ctx) -> tuple:
+class FakeRetriever:
+    """Stands in for retrieve_guidelines(): records calls, returns queued results (or raises)."""
+
+    def __init__(self, results=None, error: Exception | None = None) -> None:
+        self.results, self.error, self.calls = list(results or []), error, []
+
+    def __call__(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error:
+            raise self.error
+        return list(self.results)
+
+
+def make_agent(*understandings, answer: RecordingChatModel | None = None, now=JAIPUR_NOW,
+               retriever: FakeRetriever | None = None, **ctx) -> tuple:
     extractor = QueuedExtractor(*understandings)
     answer = answer or RecordingChatModel(replies=["Rain is unlikely; expect about 27°C."])
-    graph = build_graph(extractor=extractor, answer_llm=answer)
+    graph = build_graph(extractor=extractor, answer_llm=answer, retriever=retriever or FakeRetriever())
     agent = Agent(UserContext(now=now, **ctx), graph=graph)
     return agent, extractor, answer
 
@@ -82,7 +108,7 @@ async def test_simple_weather_query_end_to_end(respx_mock) -> None:
     response = await agent.ask("Will it rain in Jaipur tomorrow evening?")
 
     assert (response.kind, response.text) == ("answer", "Rain is unlikely; expect about 27°C.")
-    assert response.debug.nodes == ["understand", "resolve", "fetch", "answer"]
+    assert response.debug.nodes == ["understand", "resolve", "fetch", "guidelines", "answer"]
     assert [t.name for t in response.debug.tool_calls] == ["get_weather_for_windows"]
     assert response.debug.tool_calls[0].args["location"] == "Jaipur"
     assert response.debug.llm_calls == 2
@@ -570,11 +596,11 @@ async def test_template_fallback_leads_with_verdict_and_best_time(aq_world) -> N
         f"best time {best.start:%a %H:%M}-{best.end:%H:%M}.")
 
 
-async def test_guidelines_step_stores_topics_without_retrieving(respx_mock) -> None:
+async def test_guidelines_step_stores_topics(respx_mock) -> None:
     mock_onecall(respx_mock)
     graph = build_graph(extractor=QueuedExtractor(q(intent="activity_recommendation", locations=["Mumbai"],
                                                     date_expr="tomorrow")),
-                        answer_llm=RecordingChatModel(replies=["ok"]))
+                        answer_llm=RecordingChatModel(replies=["ok"]), retriever=FakeRetriever())
     config = {"configurable": {"thread_id": "t", "ctx": UserContext(now=CITIES_NOW)}}
     state = await graph.ainvoke({"message": "Mumbai tomorrow outdoors?", "response": None, "debug": AgentDebug(),
                                  "cards": [], "air_cards": [], "places": [], "assessments": [],
@@ -582,3 +608,104 @@ async def test_guidelines_step_stores_topics_without_retrieving(respx_mock) -> N
     assert "heat" in state["guideline_topics"]  # Mumbai feels like 42°C
     assert set(state["guideline_topics"]) <= {"heat", "cold", "rain", "thunderstorm", "air_quality", "uv", "wind"}
     assert "guidelines" in state["debug"].nodes
+
+
+# --- official guidance (fake retriever; never the real embedding model) ---------------------
+
+
+def heat_docs() -> list:
+    from backend.tests.test_guidance import guideline
+
+    return [guideline("heat-stay-cool"), guideline("heat-exertion-and-vulnerable-groups"), guideline("uv-sun-protection")]
+
+
+def outdoors_mumbai(**slots) -> QueryUnderstanding:
+    return q(**({"intent": "activity_recommendation", "locations": ["Mumbai"], "date_expr": "tomorrow"} | slots))
+
+
+async def test_assessment_topics_retrieve_guidance_for_the_answer(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    retriever = FakeRetriever(heat_docs())
+    agent, _, answer = make_agent(outdoors_mumbai(), now=CITIES_NOW, retriever=retriever)
+    response = await agent.ask("Can I be outdoors in Mumbai tomorrow?")
+
+    [call] = retriever.calls
+    assert call["topics"][0] == "heat" and call["activity"] == "general_outdoor"
+    assert (call["audience"], call["k"], call["severity"]) == ("general", 3, None)
+    assert [s.title for s in response.sources] == [d.title for d in heat_docs()[:2]]  # at most 2 documents
+    assert response.sources[0].source_name.startswith("WHO") and response.sources[0].source_url.startswith("https://")
+    prompt = answer.calls[0][-1].content
+    section = prompt[prompt.index("GUIDANCE (official sources"):]
+    assert section.count("\n- ") == 2 and "Sun protection" not in section
+    assert prompt.index("ACTIVITY ASSESSMENT") < prompt.index("GUIDANCE")
+    assert "guidelines" in response.debug.timings
+
+
+async def test_audience_is_passed_through(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    retriever = FakeRetriever(heat_docs())
+    agent, _, _ = make_agent(outdoors_mumbai(activity="walking", audience="older_adults"), now=CITIES_NOW,
+                             retriever=retriever)
+    await agent.ask("Can my parents go for a walk in Mumbai tomorrow?")
+    assert retriever.calls[0]["audience"] == "older_adults" and retriever.calls[0]["activity"] == "walking"
+
+
+async def test_plain_weather_does_not_retrieve(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    retriever = FakeRetriever(heat_docs())
+    agent, _, answer = make_agent(q(locations=["Jaipur"], date_expr="tomorrow", time_expr="evening"),
+                                  retriever=retriever)
+    response = await agent.ask("Will it rain in Jaipur tomorrow evening?")
+    assert retriever.calls == [] and response.sources == []
+    assert "GUIDANCE" not in answer.calls[0][-1].content
+
+
+async def test_retrieval_failure_still_answers_without_guidance(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    retriever = FakeRetriever(error=RuntimeError("index missing"))
+    agent, _, answer = make_agent(outdoors_mumbai(), now=CITIES_NOW, retriever=retriever)
+    response = await agent.ask("Can I be outdoors in Mumbai tomorrow?")
+    assert response.kind == "answer" and response.sources == [] and response.debug.error is None
+    assert "GUIDANCE" not in answer.calls[0][-1].content
+
+
+async def test_no_documents_found_means_no_section_or_sources(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    agent, _, answer = make_agent(outdoors_mumbai(), now=CITIES_NOW, retriever=FakeRetriever([]))
+    response = await agent.ask("Can I be outdoors in Mumbai tomorrow?")
+    assert response.sources == [] and "GUIDANCE" not in answer.calls[0][-1].content
+
+
+async def test_template_fallback_includes_one_guidance_line(respx_mock) -> None:
+    mock_onecall(respx_mock)
+    failing = RecordingChatModel(replies=[ModelRateLimitError("429 RESOURCE_EXHAUSTED")] * 4)
+    agent, _, _ = make_agent(outdoors_mumbai(), now=CITIES_NOW, answer=failing, retriever=FakeRetriever(heat_docs()))
+    response = await agent.ask("Can I be outdoors in Mumbai tomorrow?")
+    assert response.debug.answer_fallback
+    [line] = [x for x in response.text.splitlines() if x.startswith("Guidance (")]
+    assert line.startswith("Guidance (WHO")
+    assert response.sources  # the fallback still cites what it used
+
+
+async def test_air_quality_precautions_use_the_naqi_category_as_severity(aq_world) -> None:
+    retriever = FakeRetriever([])
+    agent, _, _ = make_agent(q(intent="air_quality", locations=["Delhi"], date_expr="tomorrow", include_air_quality=True,
+                               audience="children", asks_precautions=True), now=AQ_NOW, retriever=retriever)
+    await agent.ask("Delhi mein pollution hai, bacchon ke liye kya precautions?")
+    [call] = retriever.calls
+    assert call["topics"] == ["air_quality"] and call["audience"] == "children"
+    assert call["severity"] == "NAQI Moderately Polluted"  # Delhi's recorded worst: 126
+
+
+async def test_severe_alert_triggers_guidance_with_alert_severity(respx_mock) -> None:
+    """SYNTHETIC: the recorded Jaipur forecast has no alerts, so one IMD alert is added for this test."""
+    data = copy.deepcopy(onecall("jaipur"))
+    data["alerts"] = [{"sender_name": "IMD", "event": "Thunderstorm & Lightning", "description": "Synthetic test alert",
+                       "start": int(JAIPUR_NOW.timestamp()), "end": int((JAIPUR_NOW + timedelta(days=1)).timestamp()),
+                       "tags": []}]
+    respx_mock.get(ONECALL_URL).mock(return_value=httpx.Response(200, json=data))
+    retriever = FakeRetriever([])
+    agent, _, _ = make_agent(q(locations=["Jaipur"], date_expr="tomorrow", time_expr="morning"), retriever=retriever)
+    await agent.ask("Jaipur tomorrow morning?")
+    [call] = retriever.calls
+    assert call["topics"] == ["thunderstorm"] and call["severity"] == "thunderstorm"

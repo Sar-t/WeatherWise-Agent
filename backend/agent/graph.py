@@ -28,8 +28,10 @@ from backend.agent.llm import LLMConfigError, LLMRateLimitError, LLMUnavailableE
 from backend.agent.memory import Extractor, MemoryState, Turn, record, understand
 from backend.agent.resolution import resolve_query
 from backend.agent.assess import assess_place, guideline_topics, should_assess
+from backend.agent.guidance import MAX_DOCS, guidance_line, keep_relevant, plan_guidance, summarize_guidance
 from backend.agent.observations import air_unavailable, summarize_assessment
 from backend.agent.schemas import (
+    GuidelineSource,
     AgentDebug,
     AgentResponse,
     QueryUnderstanding,
@@ -45,7 +47,7 @@ from backend.agent.tools import (
     get_current_weather,
     get_weather_for_windows,
 )
-from backend.services import models
+from backend.services import guidelines, models
 from backend.services.errors import OutOfRangeError, UpstreamAPIError, WeatherWiseError
 from backend.services.models import AirQualityResult, WeatherResult
 from backend.services.scoring import models as scoring_models
@@ -69,7 +71,7 @@ DECLINE_TEXT = (
 _STATE_TYPES = [
     (schemas.__name__, name)
     for name in ("QueryUnderstanding", "ResolvedQuery", "Clarification", "Target", "AgentResponse", "AgentDebug",
-                 "ToolCallInfo")
+                 "ToolCallInfo", "GuidelineSource")
 ] + [(models.__name__, name) for name in ("Location", "TimeWindow", "WeatherResult", "WeatherPoint",
                                           "DailyWeather", "WeatherAlert", "SunTimes", "AirQualityResult",
                                           "AirQualityPoint", "AirComponents", "AirQualitySummary")
@@ -89,14 +91,18 @@ class AgentState(TypedDict, total=False):
     # Per place, for scoring: its weather results, and its air quality (None: not fetched, []: failed).
     places: list[tuple[list[WeatherResult], list[AirQualityResult] | None]]
     assessments: list[ActivityAssessment]
-    guideline_topics: list[str]  # for the guidelines step (step 3f)
+    guideline_topics: list[str]  # what the guidelines step may look up
+    sources: list[GuidelineSource]  # guidelines given to the answer model
+    guidance_note: str | None  # one guidance line for the template fallback
     observations: list[str]
     response: AgentResponse | None
     debug: AgentDebug
 
 
-def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpointer: Any = None):
-    """Compile the agent graph. `extractor` and `answer_llm` are injectable for tests and evals."""
+def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpointer: Any = None,
+                retriever: Callable[..., list] | None = None):
+    """Compile the agent graph. `extractor`, `answer_llm` and `retriever` (default:
+    guidelines.retrieve_guidelines) are injectable for tests and evals."""
 
     async def understand_node(state: AgentState, config: RunnableConfig) -> dict:
         debug = state["debug"]
@@ -183,12 +189,32 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
         return {"assessments": assessments, "observations": summaries + state["observations"]}
 
     async def guidelines_node(state: AgentState, config: RunnableConfig) -> dict:
-        """GUIDELINES HOOK (no-op until step 3f): derives the topics to look up; retrieves nothing yet.
-
-        3f: retrieve guidelines for `topics` (and the activity) here and add them to the observations.
-        """
+        """Official guidance, only when there's a reason (see guidance.plan_guidance). Non-blocking:
+        a missing index or failed retrieval means an answer without guidance."""
+        assessments, air_cards = state.get("assessments") or [], state.get("air_cards") or []
         alerts = [a for card in state.get("cards") or [] for a in card.alerts]
-        return {"guideline_topics": guideline_topics(state.get("assessments") or [], alerts)}
+        update: dict = {"guideline_topics": guideline_topics(assessments, alerts), "sources": [],
+                        "guidance_note": None}
+        request = plan_guidance(state["resolved"].understanding, assessments, air_cards, alerts)
+        if request is None:
+            return update
+        try:
+            found = await asyncio.to_thread(retriever or guidelines.retrieve_guidelines, **request.kwargs())
+        except Exception:
+            log.exception("guideline retrieval failed; answering without guidance")
+            return update
+        docs = keep_relevant(found, request.severity)[:MAX_DOCS]
+        log.info("guidelines", extra={"reasons": request.reasons, "topics": request.topics,
+                                      "severity": request.severity, "docs": [d.doc_id for d in docs]})
+        if not docs:
+            return update
+        words = request.words()
+        return update | {
+            "observations": state["observations"] + [summarize_guidance(docs, words)],
+            "sources": [GuidelineSource(title=d.title, source_name=d.source_name, source_url=d.source_url)
+                        for d in docs],
+            "guidance_note": guidance_line(docs, words),
+        }
 
     async def answer_node(state: AgentState, config: RunnableConfig) -> dict:
         debug = state["debug"]
@@ -197,13 +223,14 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
         air_cards, assessments = state.get("air_cards") or [], state.get("assessments") or []
         answer = await generate_answer(state["message"], state["understanding"], state["observations"],
                                        state["cards"], llm=answer_llm, now=now, air_cards=air_cards,
-                                       assessments=assessments)
+                                       assessments=assessments, guidance_note=state.get("guidance_note"))
         debug.llm_calls += 1
         debug.answer_fallback = answer.fallback
         if answer.error:
             debug.error = answer.error
         return {"response": AgentResponse(text=answer.text, kind="answer", cards=state["cards"],
-                                          air_quality=air_cards, assessments=assessments, debug=debug)}
+                                          air_quality=air_cards, assessments=assessments,
+                                          sources=state.get("sources") or [], debug=debug)}
 
     async def ask_node(state: AgentState, config: RunnableConfig) -> dict:
         return {"response": AgentResponse(text=state["resolved"].clarification.question, kind="clarification",
@@ -240,7 +267,8 @@ class Agent:
     async def ask(self, message: str) -> AgentResponse:
         started = time.perf_counter()
         turn_input = {"message": message, "response": None, "debug": AgentDebug(), "cards": [], "air_cards": [],
-                      "places": [], "assessments": [], "guideline_topics": [], "observations": []}
+                      "places": [], "assessments": [], "guideline_topics": [], "sources": [],
+                      "guidance_note": None, "observations": []}
         config = {"configurable": {"thread_id": self.thread_id, "ctx": self.ctx}}
         state = await self.graph.ainvoke(turn_input, config)
         response = state["response"]
@@ -269,7 +297,7 @@ def _route(state: AgentState) -> str:
 def _after_fetch(state: AgentState) -> str:
     if state.get("response") is not None:
         return END
-    return "assess" if should_assess(state["resolved"].understanding) else "answer"
+    return "assess" if should_assess(state["resolved"].understanding) else "guidelines"
 
 
 def _stop_on_error(next_node: str) -> Callable[[AgentState], str]:

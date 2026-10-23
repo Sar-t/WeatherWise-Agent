@@ -10,6 +10,7 @@ import asyncio
 
 from backend.agent.graph import Agent
 from backend.agent.schemas import AgentResponse, UserContext
+from backend.services import guidelines
 
 
 def print_response(response: AgentResponse, debug: bool) -> None:
@@ -22,6 +23,8 @@ def print_response(response: AgentResponse, debug: bool) -> None:
         print(f"  [debug] tool {call.name}({call.args}) {call.seconds:.2f}s")
     print(f"  [debug] llm calls: {d.llm_calls}" + ("  (answer fell back to the template)" if d.answer_fallback else ""))
     print("  [debug] timings: " + ", ".join(f"{name} {s:.2f}s" for name, s in d.timings.items()))
+    if response.sources:
+        print("  [debug] sources: " + "; ".join(f"{s.title} ({s.source_name})" for s in response.sources))
     if d.error:
         print(f"  [debug] error: {d.error}")
 
@@ -29,6 +32,12 @@ def print_response(response: AgentResponse, debug: bool) -> None:
 async def main(lat: float | None, lon: float | None, debug: bool) -> None:
     ctx = UserContext(lat=lat, lon=lon)
     agent = Agent(ctx)
+    try:  # load the guidelines model and index once, before the first question
+        seconds = guidelines.warm_up()
+        if debug:
+            print(f"  [debug] guidelines model and index loaded in {seconds:.1f}s")
+    except Exception as exc:  # answers still work without guidance
+        print(f"(guidelines unavailable: {type(exc).__name__}; answering without official guidance)")
     where = f"({lat}, {lon}), {ctx.timezone}" if ctx.has_location else f"no device location, {ctx.timezone}"
     print(f"WeatherWise. Location: {where}. Type 'quit' to exit.")
     while True:

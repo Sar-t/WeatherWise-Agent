@@ -8,6 +8,7 @@ call. Replies are cached in evals/.cache/ by model + prompt hash; --refresh igno
 
 import argparse
 import asyncio
+import copy
 import hashlib
 import json
 import re
@@ -27,17 +28,18 @@ from backend.agent.graph import Agent, build_graph
 from backend.agent.llm import get_llm, message_text
 from backend.agent.schemas import QueryUnderstanding, UserContext
 from backend.core.config import get_settings
-from backend.services import air_quality, weather
+from backend.services import air_quality, guidelines, weather
 from backend.services.display import percent5, whole
 from backend.services.cache import InMemoryCache
 from backend.services.weather import DAY_SUMMARY_URL, ONECALL_URL, TIMEMACHINE_URL
 from backend.tests.agent_fakes import (
+    AIR_BY_LAT,
     ONECALL_BY_LAT,
     ONECALL_BY_LAT_AQ,
     QueuedExtractor,
     fixture_now,
+    air,
     install_fake_geocoding,
-    mock_air_quality,
     onecall,
 )
 
@@ -229,18 +231,70 @@ def check_times(reply: str, observations: str) -> list[str]:
     return [f"time {t} not in the observations" for t in sorted(times(reply) - times(observations))]
 
 
+# SYNTHETIC per-case overrides (a case's `synthetic:`), clearly separate from the recordings:
+# air_scale multiplies recorded PM2.5/PM10 (no recording has Poor air); alerts are added to the
+# recorded forecast (no recording has an alert).
+_synthetic: dict = {}
+
+
+def _with_synthetic_alerts(data: dict) -> dict:
+    alerts = _synthetic.get("alerts")
+    if not alerts:
+        return data
+    data = copy.deepcopy(data)
+    start = int(data["current"]["dt"])
+    data["alerts"] = [{"sender_name": "IMD (synthetic eval alert)", "event": a["event"], "description": "Synthetic.",
+                       "start": start, "end": start + 3600 * a.get("hours", 36), "tags": []} for a in alerts]
+    return data
+
+
+def _with_synthetic_air(data: dict) -> dict:
+    scale = _synthetic.get("air_scale")
+    if not scale:
+        return data
+    data = copy.deepcopy(data)
+    for entry in data.get("list") or []:
+        components = entry.get("components") or {}
+        for key in ("pm2_5", "pm10"):
+            if components.get(key) is not None:
+                components[key] = round(components[key] * scale, 2)
+    return data
+
+
 def install_recorded_weather(router: respx.MockRouter) -> None:
     """Recorded weather and air quality. Air quality exists for Delhi and Paris only (others: HTTP 503)."""
+    from backend.services.air_quality import CURRENT_URL, FORECAST_URL, HISTORY_URL
 
     def onecall_for(request: httpx.Request) -> httpx.Response:
         name = (ONECALL_BY_LAT | _onecall_by_lat).get(request.url.params["lat"], "jaipur")
-        return httpx.Response(200, json=onecall(name))
+        return httpx.Response(200, json=_with_synthetic_alerts(onecall(name)))
 
     router.get(ONECALL_URL).mock(side_effect=onecall_for)
     for url, name in ((TIMEMACHINE_URL, "timemachine"), (DAY_SUMMARY_URL, "day_summary")):
         data = json.loads((FIXTURES / f"openweather_{name}_jaipur.json").read_text(encoding="utf-8"))
         router.get(url).mock(return_value=httpx.Response(200, json=data))
-    mock_air_quality(router)
+
+    def air_for(kind: str):
+        def respond(request: httpx.Request) -> httpx.Response:
+            name = AIR_BY_LAT.get(request.url.params["lat"])
+            return httpx.Response(200, json=_with_synthetic_air(air(kind, name))) if name else httpx.Response(503)
+        return respond
+
+    for url, kind in ((CURRENT_URL, "current"), (FORECAST_URL, "forecast"), (HISTORY_URL, "history")):
+        router.get(url).mock(side_effect=air_for(kind))
+
+
+SOURCE_WORDS = ("CPCB", "Health Ministry", "MoHFW", "Ministry of Health", "NDMA", "WHO", "World Health")
+
+
+def check_guidance(response, expected: bool) -> list[str]:
+    """With guidance: sources are returned and the reply names one. Without: neither."""
+    named = [w for w in SOURCE_WORDS if re.search(rf"(?<!\w){re.escape(w)}(?!\w)", response.text)]
+    if expected:
+        return ([] if response.sources else ["no guidance sources returned"]) + (
+            [] if named else ["reply names no official source"])
+    return ([f"unexpected guidance sources: {[s.title for s in response.sources]}"] if response.sources else []) + (
+        [f"reply cites {named} without guidance"] if named else [])
 
 
 async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], list[str], list[str]]:
@@ -250,6 +304,8 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
     _onecall_by_lat.clear()
     if case["now"] == "aq":  # weather recorded alongside the air quality fixtures
         _onecall_by_lat.update(ONECALL_BY_LAT_AQ)
+    _synthetic.clear()
+    _synthetic.update(case.get("synthetic") or {})
     turns = case["turns"]
     extractor = QueuedExtractor(*(QueryUnderstanding(**t["understanding"]) for t in turns))
     ctx = UserContext(now=NOWS[case["now"]], **case.get("device", {}))
@@ -286,6 +342,8 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
         warnings += [f"{tag}derived number {w}" for w in grounding.warnings]
         failures += [f"{tag}{f}" for f in check_times(response.text, observations)]
         failures += [f"{tag}{f}" for f in check_unsupported(response.text, observations)]
+        if "guidance" in expect:
+            failures += [f"{tag}{f}" for f in check_guidance(response, expect["guidance"])]
         if len(response.assessments) == 1 and not response.debug.answer_fallback:  # comparisons word two verdicts
             # Only the direct answer: later sentences may rightly call an avoid window "not suitable".
             verdict_failures, verdict_warnings = check_verdict(first_sentence(response.text),
@@ -302,8 +360,12 @@ async def main(pause: float, only: set[str], model_name: str | None, refresh: bo
     name = settings.answer_model or settings.llm_model
     answer_llm = CachedAnswerLLM(get_llm("answer", settings=settings), name, pause, refresh)
     cases = [c for c in yaml.safe_load(CASES.read_text(encoding="utf-8")) if not only or c["id"] in only]
+    try:  # the real local retriever (build the index first: python -m ingestion.build_index)
+        warm = f"{guidelines.warm_up():.1f}s"
+    except Exception as exc:
+        warm = f"unavailable ({type(exc).__name__}); cases expecting guidance will fail"
     print(f"Answer model: {settings.llm_provider}/{name}  cases: {len(cases)}  pause: {pause}s  "
-          f"cache: {'refresh' if refresh else 'on'}\n")
+          f"cache: {'refresh' if refresh else 'on'}  guidelines: {warm}\n")
 
     patcher = pytest.MonkeyPatch()
     install_fake_geocoding(patcher)
