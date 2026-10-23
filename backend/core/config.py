@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     answer_thinking: str = "minimal"
     google_api_key: SecretStr = SecretStr("")
 
+    # Guidelines RAG: a small multilingual local embedding model (users write Hinglish).
+    embedding_model: str = "intfloat/multilingual-e5-small"  # ~118M params, ~470 MB download, 384-dim
+    vector_store_dir: str = "data/vector_store"
+
     langsmith_tracing: bool = False
     langsmith_api_key: SecretStr = SecretStr("")
     langsmith_project: str = "weatherwise"

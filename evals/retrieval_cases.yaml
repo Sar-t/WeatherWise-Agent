@@ -1,0 +1,76 @@
+# Retrieval evals: python evals/run_retrieval.py (local embedding model, no LLM, no quota).
+# Each case gives retrieve_guidelines() inputs and the document ids that count as a hit.
+# hit@1: the first result is one of `expected`; hit@4: any of the top 4 is.
+# An empty `expected` means nothing should come back (e.g. no fog documents yet).
+
+- id: running_naqi_poor
+  input: {topics: [air_quality], activity: running, severity: "NAQI 230, Poor"}
+  expected: [naqi-poor, exercise-in-polluted-air]
+
+- id: cycling_naqi_severe
+  input: {topics: [air_quality], activity: cycling, severity: "NAQI 420, Severe"}
+  expected: [naqi-severe, exercise-in-polluted-air]
+
+- id: walking_moderate_alias
+  input: {topics: [air_quality], activity: walking, severity: "NAQI 150, Moderate"}
+  expected: [naqi-moderately-polluted]
+
+- id: good_air
+  input: {topics: [air_quality], activity: running, severity: "NAQI 40, Good"}
+  expected: [naqi-good-satisfactory]
+
+- id: hinglish_smog_walk
+  input: {topics: [air_quality], activity: walking, query_text: "kal smog bahut hai, subah walk pe jaun?"}
+  expected: [exercise-in-polluted-air, naqi-poor, naqi-very-poor]
+
+- id: which_mask
+  input: {topics: [air_quality], audience: sensitive_groups, query_text: "which mask works for pollution, is a cloth mask ok?"}
+  expected: [air-pollution-masks-and-vulnerable-groups]
+
+- id: what_is_pm25
+  input: {topics: [air_quality], query_text: "what is PM2.5 and why is it harmful"}
+  expected: [particulate-matter-basics]
+
+- id: picnic_thunderstorm
+  input: {topics: [thunderstorm], activity: picnic, severity: thunderstorm}
+  expected: [thunderstorm-lightning-outdoors]
+
+- id: lightning_first_aid
+  input: {topics: [thunderstorm], query_text: "someone was struck by lightning, what should we do"}
+  expected: [thunderstorm-lightning-indoors-first-aid]
+
+- id: elderly_heat_wave
+  input: {topics: [heat], audience: older_adults, severity: heat wave, query_text: "my elderly parents during a heatwave"}
+  expected: [heat-exertion-and-vulnerable-groups, heat-stay-cool]
+
+- id: hinglish_garmi
+  input: {topics: [heat], query_text: "garmi mein bahar jana safe hai?"}
+  expected: [heat-stay-cool, heat-exertion-and-vulnerable-groups]
+
+- id: running_in_heat
+  input: {topics: [heat], activity: running, severity: "feels like 39°C, too hot"}
+  expected: [heat-exertion-and-vulnerable-groups, heat-stay-cool]
+
+- id: walking_cold_wave
+  input: {topics: [cold], activity: walking, severity: cold wave, query_text: "what to wear in a cold wave"}
+  expected: [cold-wave-dos-donts]
+
+- id: hypothermia_signs
+  input: {topics: [cold], query_text: "shivering, slurred speech and very sleepy after being out in the cold"}
+  expected: [cold-frostbite-hypothermia]
+
+- id: hinglish_angithi
+  input: {topics: [cold], query_text: "thand mein band kamre mein angithi jalana safe hai?"}
+  expected: [cold-wave-dos-donts]
+
+- id: picnic_high_uv
+  input: {topics: [uv], activity: picnic, severity: "UV index 9"}
+  expected: [uv-index-levels, uv-sun-protection]
+
+- id: kids_sun
+  input: {topics: [uv], audience: children, query_text: "how do I protect my kids from the sun"}
+  expected: [uv-sun-protection]
+
+- id: travel_dense_fog
+  input: {topics: [fog], activity: travel, query_text: "driving in dense fog"}
+  expected: []
