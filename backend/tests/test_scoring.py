@@ -274,7 +274,7 @@ def test_best_blocks_prefer_better_hours() -> None:
     hot = {"feels_like_c": 34}
     result = assess_activity("running", [with_hours(at(6), 4, {0: hot, 1: hot, 3: hot})], now=NOW)
     assert [b.start for b in result.best_blocks] == [at(8), at(6)]  # 100 first, then the earlier tie
-    assert result.best_blocks[1].reasons == ["feels like 34°C, too hot"]
+    assert result.best_blocks[1].reasons == ["possible with care", "feels like 34°C, too hot around 06:00"]
 
 
 def test_daylight_activities_only_get_daylight_blocks() -> None:
@@ -350,6 +350,28 @@ def test_past_window_has_no_best_time() -> None:
     assert result.score == 100 and "already passed" in result.data_quality[-1]
 
 
+def test_good_blocks_frame_their_worst_moment_as_a_caution_with_its_time() -> None:
+    hot = {"feels_like_c": 33}
+    walking = assess_activity("walking", [with_hours(at(6), 1, {})], now=NOW)
+    assert walking.best_blocks[0].reasons == []  # nothing lost points: no caution either
+    # football (2 h): 06:00 pleasant, 07:00 hot -> a suitable block that is "mostly good"
+    result = assess_activity("football", [with_hours(at(6), 2, {1: hot})], now=NOW)
+    [best] = result.best_blocks
+    assert best.verdict == "suitable"
+    assert best.reasons == ["mostly good", "feels like 33°C, too hot around 07:00"]
+    # avoid blocks (not suitable) keep the plain wording
+    storm = assess_activity("running", [with_hours(at(6), 2, {1: {"condition": "Thunderstorm"}})], now=NOW)
+    assert storm.avoid_blocks[0].reasons == ["thunderstorm"]
+
+
+def test_daily_block_cautions_name_the_part_of_day() -> None:
+    from backend.services.scoring.blocks import block_reasons
+
+    window = TimeWindow(start=datetime(2026, 10, 26, 12, tzinfo=IST), end=datetime(2026, 10, 26, 17, tzinfo=IST))
+    a = assess_activity("running", [daily_result(date(2026, 10, 26), window, feels_like_day_c=29)], now=NOW)
+    assert block_reasons(a.hourly, 3, when=True) == ["feels like 29°C, warm in the afternoon", "UV index 5 in the afternoon"]
+
+
 def test_block_reasons_put_hard_stops_first() -> None:
     def h(t: datetime, score: int, stops: list[str], factor: FactorScore) -> HourAssessment:
         return HourAssessment(time=t, end=t + timedelta(hours=1), score=score, verdict=verdict(score),
@@ -410,7 +432,8 @@ def test_daily_thunderstorm_caps_at_marginal_instead_of_stopping() -> None:
     assert [h.score for h in storm.hourly] == [45, 45, 45, 45]  # each part would otherwise score 100
     assert all(h.hard_stops == [] and h.verdict == "marginal" for h in storm.hourly)
     assert storm.hourly[0].reasons[0] == "thunderstorms possible during the day"
-    assert storm.verdict == "marginal" and storm.best_blocks[0].reasons == ["thunderstorms possible during the day"]
+    assert storm.verdict == "marginal" and storm.best_blocks[0].reasons == [
+        "possible with care", "thunderstorms possible during the day"]  # a day-level cap: no time attached
     assert ("Thunderstorms possible during the day; check the hourly forecast closer to the date."
             in storm.data_quality)
 

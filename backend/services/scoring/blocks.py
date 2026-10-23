@@ -56,20 +56,40 @@ def avoid_blocks(groups: list[list[HourAssessment]]) -> list[TimeBlock]:
     return [block(run, AVOID_REASONS) for slots in groups for run in runs([s for s in slots if s.score < MARGINAL])]
 
 
+# How a good-overall block frames its worst moments: a caution, not a reason to skip it.
+CAUTION = {"suitable": "mostly good", "marginal": "possible with care"}
+
+
 def block(slots: list[HourAssessment], reason_limit: int) -> TimeBlock:
-    average = fmean(s.score for s in slots)
-    return TimeBlock(start=slots[0].time, end=slots[-1].end, average_score=round(average),
-                     verdict=verdict(round(average)), reasons=block_reasons(slots, reason_limit))
+    average = round(fmean(s.score for s in slots))
+    v = verdict(average)
+    if v == "not_suitable":
+        reasons = block_reasons(slots, reason_limit)
+    else:  # e.g. "mostly good; feels like 34°C around 05:30"
+        reasons = block_reasons(slots, reason_limit, when=True)
+        reasons = [CAUTION[v], *reasons] if reasons else []
+    return TimeBlock(start=slots[0].time, end=slots[-1].end, average_score=average, verdict=v, reasons=reasons)
 
 
-def block_reasons(slots: list[HourAssessment], limit: int) -> list[str]:
-    """Hard stops and caps first, then each factor that lost points at its worst hour, worst first."""
-    stops = list(dict.fromkeys([stop for s in slots for stop in s.hard_stops]
-                               + [s.capped_by for s in slots if s.capped_by]))
-    worst: dict[str, FactorScore] = {}
+def block_reasons(slots: list[HourAssessment], limit: int, when: bool = False) -> list[str]:
+    """Hard stops and caps first, then each factor that lost points at its worst hour, worst first.
+
+    `when` adds the hour it happens ("around 05:30"; "in the afternoon" for daily estimates).
+    """
+    def at(s: HourAssessment) -> str:
+        return f" in the {s.part_of_day}" if s.part_of_day else f" around {s.time:%H:%M}"
+
+    stops: dict[str, str] = {}
+    for s in slots:
+        for stop in s.hard_stops:
+            stops.setdefault(stop, stop + (at(s) if when else ""))
+        if s.capped_by:  # day-level (e.g. thunderstorms possible during the day): no time to attach
+            stops.setdefault(s.capped_by, s.capped_by)
+    worst: dict[str, tuple[FactorScore, HourAssessment]] = {}
     for s in slots:
         for f in s.factors:
-            if f.reason and (f.name not in worst or f.score < worst[f.name].score):
-                worst[f.name] = f
-    factors = [f.reason for f in sorted(worst.values(), key=lambda f: f.score) if f.reason not in stops]
-    return (stops + factors)[:limit]
+            if f.reason and (f.name not in worst or f.score < worst[f.name][0].score):
+                worst[f.name] = (f, s)
+    factors = [f.reason + (at(s) if when else "") for f, s in sorted(worst.values(), key=lambda fs: fs[0].score)
+               if f.reason not in stops]
+    return (list(stops.values()) + factors)[:limit]
