@@ -6,6 +6,7 @@ nothing relevant passes; never raises just because nothing matched.
 """
 
 import math
+import re
 import threading
 from dataclasses import dataclass, field
 from typing import Any
@@ -92,6 +93,20 @@ def build_filter(topics: list[str] | None = None, activity: str | None = None,
     return clauses[0] if len(clauses) == 1 else {"$and": clauses}
 
 
+def _words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z]+", text.lower())}
+
+
+def severity_match(requested: str | None, doc_severity: str) -> int:
+    """How specifically a document's severity tags match the request: the word count of the longest
+    tag whose words all appear in it ("NAQI Moderate" in "NAQI 150, Moderate" -> 2); 0 if none."""
+    if not requested:
+        return 0
+    wanted = _words(requested)
+    tags = [_words(tag) for tag in doc_severity.split("|")]
+    return max((len(tag) for tag in tags if tag and tag <= wanted), default=0)
+
+
 def _any(conditions: list[dict]) -> dict:
     return conditions[0] if len(conditions) == 1 else {"$or": conditions}
 
@@ -112,8 +127,12 @@ def retrieve_guidelines(
     hits = store.query(embedder.embed_query(query), k * CANDIDATES_PER_RESULT,
                        build_filter(topics, activity, audience))
 
+    # Documents whose `severity` matches the requested one come first (most specific match first),
+    # then by similarity: the NAQI band documents read alike to the model, their tags don't.
+    ranked = sorted(hits, key=lambda h: (-severity_match(severity, str(h.metadata.get("severity", ""))),
+                                         -h.similarity))
     results, seen, used = [], set(), 0
-    for hit in sorted(hits, key=lambda h: h.similarity, reverse=True):
+    for hit in ranked:
         doc_id = str(hit.metadata.get("doc_id", hit.id))
         if hit.similarity < MIN_SIMILARITY or doc_id in seen:
             continue

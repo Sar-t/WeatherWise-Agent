@@ -221,6 +221,27 @@ def test_audience_filter_adds_to_general(indexed, store) -> None:
 # --- cleaning ------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("requested, doc_severity, expected", [
+    ("NAQI 150, Moderate", "NAQI Moderately Polluted | NAQI Moderate", 2),
+    ("NAQI Moderately Polluted", "NAQI Moderately Polluted | NAQI Moderate", 3),
+    ("NAQI 230, Poor", "NAQI Poor", 2),
+    ("NAQI 330, Very Poor", "NAQI Poor | NAQI Very Poor | NAQI Severe", 3),  # the most specific tag
+    ("NAQI 230, Poor", "NAQI Very Poor", 0),
+    ("heat wave", "heat wave", 2),
+    ("NAQI 230, Poor", "", 0),
+    (None, "NAQI Poor", 0),
+])
+def test_severity_match(requested, doc_severity: str, expected: int) -> None:
+    assert guidelines.severity_match(requested, doc_severity) == expected
+
+
+def test_severity_match_ranks_first_among_filtered_results(indexed) -> None:
+    for severity, doc_id in (("NAQI 150, Moderate", "naqi-moderately-polluted"), ("NAQI 420, Severe", "naqi-severe"),
+                             ("NAQI 40, Good", "naqi-good-satisfactory")):
+        results = retrieve_guidelines(topics=["air_quality"], activity="walking", severity=severity)
+        assert results[0].doc_id == doc_id
+
+
 def test_results_carry_source_and_score(indexed) -> None:
     [top, *_] = retrieve_guidelines(topics=["thunderstorm"], query_text="lightning shelter thunder outdoors")
     assert top.doc_id.startswith("thunderstorm-lightning")
