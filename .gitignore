@@ -8,3 +8,5 @@ evals/.cache/
 data/vector_store/
 data/*.db
 data/*.sqlite
+data/*.sqlite-*
+data/*.db-*
