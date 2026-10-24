@@ -92,7 +92,7 @@ async def reverse_geocode(lat: float, lon: float) -> Location:
             name="Current location",
             lat=lat,
             lon=lon,
-            formatted=f"{lat:.4f}, {lon:.4f}",
+            formatted=f"{lat:.2f}, {lon:.2f}",  # device coordinates: never shown or kept beyond 2 decimals
             timezone=timezone_at(lat, lon),
         )
     else:

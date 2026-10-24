@@ -64,6 +64,9 @@ class WeatherPoint(BaseModel):
     condition: str | None = None  # OpenWeather "main", e.g. "Rain"
     description: str | None = None  # e.g. "light rain"
     icon: str | None = None  # OpenWeather icon code, e.g. "10d"
+    condition_id: int | None = None  # OpenWeather condition code, e.g. 500 (light rain)
+    pressure_hpa: float | None = Field(default=None, ge=0)
+    wind_deg: float | None = Field(default=None, ge=0, le=360)  # direction the wind comes from
 
 
 class DailyWeather(BaseModel):
@@ -86,6 +89,7 @@ class DailyWeather(BaseModel):
     uvi: float | None = Field(default=None, ge=0)
     condition: str | None = None
     description: str | None = None
+    condition_id: int | None = None  # OpenWeather condition code
     summary: str | None = None  # e.g. "Expect a day of partly cloudy with rain"
 
 

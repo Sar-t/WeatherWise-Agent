@@ -252,8 +252,20 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
     graph.add_conditional_edges("guidelines", _stop_on_error("answer"))
     for name in ("answer", "ask", "decline"):
         graph.add_edge(name, END)
-    checkpointer = checkpointer or MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=_STATE_TYPES))
+    checkpointer = checkpointer or MemorySaver(serde=state_serde())
     return graph.compile(checkpointer=checkpointer)
+
+
+def state_serde() -> JsonPlusSerializer:
+    """The serializer any checkpointer should use: restores only the agent's own state types."""
+    return JsonPlusSerializer(allowed_msgpack_modules=_STATE_TYPES)
+
+
+def turn_input(message: str) -> dict:
+    """Fresh per-turn state (memory carries over through the checkpointer)."""
+    return {"message": message, "response": None, "debug": AgentDebug(), "cards": [], "air_cards": [],
+            "places": [], "assessments": [], "guideline_topics": [], "sources": [], "guidance_note": None,
+            "observations": []}
 
 
 class Agent:
@@ -266,11 +278,8 @@ class Agent:
 
     async def ask(self, message: str) -> AgentResponse:
         started = time.perf_counter()
-        turn_input = {"message": message, "response": None, "debug": AgentDebug(), "cards": [], "air_cards": [],
-                      "places": [], "assessments": [], "guideline_topics": [], "sources": [],
-                      "guidance_note": None, "observations": []}
         config = {"configurable": {"thread_id": self.thread_id, "ctx": self.ctx}}
-        state = await self.graph.ainvoke(turn_input, config)
+        state = await self.graph.ainvoke(turn_input(message), config)
         response = state["response"]
         response.debug.timings["total"] = round(time.perf_counter() - started, 3)
         return response

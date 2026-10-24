@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     embedding_model: str = "intfloat/multilingual-e5-small"  # ~118M params, ~470 MB download, 384-dim
     vector_store_dir: str = "data/vector_store"
 
+    # HTTP API
+    cors_origins: str = "http://localhost:3000"  # comma-separated
+    database_url: str = "sqlite+aiosqlite:///data/weatherwise.db"  # conversations and messages
+    checkpoint_db: str = "data/checkpoints.sqlite"  # LangGraph conversation state (follow-ups)
+    rate_limit_per_minute: int = 10  # chat messages per client ID
+    daily_message_cap: int = 40  # chat messages per client ID per day (Asia/Kolkata), protects the LLM quota
+    dashboard_rate_per_minute: int = 60  # dashboard requests per client ID
+    max_message_chars: int = 500
+
     langsmith_tracing: bool = False
     langsmith_api_key: SecretStr = SecretStr("")
     langsmith_project: str = "weatherwise"

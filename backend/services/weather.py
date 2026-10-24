@@ -318,6 +318,9 @@ def _point(raw: dict[str, Any], tz: ZoneInfo) -> WeatherPoint:
         condition=weather.get("main"),
         description=weather.get("description"),
         icon=weather.get("icon"),
+        condition_id=weather.get("id"),
+        pressure_hpa=raw.get("pressure"),
+        wind_deg=raw.get("wind_deg"),
     )
 
 
@@ -342,6 +345,7 @@ def _daily(raw: dict[str, Any], tz: ZoneInfo) -> DailyWeather:
         uvi=raw.get("uvi"),
         condition=weather.get("main"),
         description=weather.get("description"),
+        condition_id=weather.get("id"),
         summary=raw.get("summary"),
     )
 

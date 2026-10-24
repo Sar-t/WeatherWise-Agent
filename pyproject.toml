@@ -17,6 +17,11 @@ dependencies = [
     "pyyaml>=6.0",  # services/scoring/activities.yaml, guideline front matter, evals
     "sentence-transformers>=3.0",  # guidelines RAG embeddings (pulls in torch)
     "chromadb>=0.5",  # guidelines vector store
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy[asyncio]>=2.0",  # conversations (SQLite now, Postgres later)
+    "aiosqlite>=0.20",
+    "langgraph-checkpoint-sqlite>=2.0",  # conversation state survives restarts
 ]
 
 [project.optional-dependencies]

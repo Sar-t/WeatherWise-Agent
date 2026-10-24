@@ -204,6 +204,15 @@ async def test_day_summary_has_no_sun_times(day_summary) -> None:
     assert (await get_weather(JAIPUR, window("yesterday"), now=NOW)).sun == []
 
 
+async def test_points_carry_condition_code_pressure_and_wind_direction(onecall) -> None:
+    current = (await get_current(JAIPUR)).hourly[0]
+    raw = ONECALL["current"]
+    assert (current.condition_id, current.pressure_hpa, current.wind_deg) == (
+        raw["weather"][0]["id"], raw["pressure"], raw["wind_deg"])
+    daily = (await get_weather(JAIPUR, window("next_thursday"), now=NOW)).daily[0]
+    assert daily.condition_id == ONECALL["daily"][4]["weather"][0]["id"]
+
+
 async def test_window_within_8_days_is_daily(onecall) -> None:
     result = await get_weather(JAIPUR, window("next_thursday"), now=NOW)  # 2026-10-22
     assert result.granularity == "daily"

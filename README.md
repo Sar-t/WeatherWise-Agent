@@ -68,6 +68,37 @@ python -m backend.agent.cli --lat 26.91 --lon 75.79 --debug   # --lat/--lon simu
 Without the index the agent still answers, just without official guidance. The first start loads
 the embedding model (~30 s cold); after that, guidance adds about 35 ms to a turn.
 
+## HTTP API
+
+```bash
+python -m ingestion.build_index                 # once (optional: without it, answers have no official guidance)
+uvicorn backend.api.app:app --port 8000         # http://localhost:8000/docs for the interactive docs
+python scripts/export_openapi.py                # writes openapi.json for the frontend
+```
+
+All routes are under `/api/v1`. There's no login: send an anonymous `X-Client-Id` header (a UUID the
+frontend generates and keeps). Conversations belong to that ID. Settings (see `.env.example`):
+`CORS_ORIGINS`, `DATABASE_URL`, `CHECKPOINT_DB`, `RATE_LIMIT_PER_MINUTE`, `DAILY_MESSAGE_CAP`,
+`DASHBOARD_RATE_PER_MINUTE`, `MAX_MESSAGE_CHARS`, plus the API keys and model settings above.
+
+```bash
+ID=$(python -c "import uuid; print(uuid.uuid4())")
+
+# One JSON reply (omit conversation_id to start a conversation; send it back for follow-ups)
+curl -s localhost:8000/api/v1/chat -H "X-Client-Id: $ID" -H "Content-Type: application/json" \
+  -d '{"message": "Will it rain in Jaipur tomorrow evening?"}'
+
+# Streamed: status events, then token events, then the final message event (or an error event)
+curl -N localhost:8000/api/v1/chat/stream -H "X-Client-Id: $ID" -H "Content-Type: application/json" \
+  -d '{"message": "Can I go for a run in Delhi tomorrow morning?", "location": {"lat": 28.61, "lon": 77.21}}'
+
+# Dashboard (no LLM): by coordinates or place name; an ambiguous name returns 409 with candidates
+curl -s "localhost:8000/api/v1/dashboard?place=Pune" -H "X-Client-Id: $ID"
+```
+
+Device coordinates are rounded to 2 decimals (~1 km) on arrival and are never stored or logged
+more precisely.
+
 ## Evals (real LLM, run manually)
 
 ```bash
