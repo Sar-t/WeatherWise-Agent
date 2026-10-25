@@ -1,0 +1,35 @@
+{
+    "error": {
+        "code": "ambiguous_place",
+        "message": "Which place did you mean?",
+        "request_id": "303bdd0788a44c55bab39837f0c750fc",
+        "details": {
+            "candidates": [
+                {
+                    "name": "Chhatrapati Sambhajinagar",
+                    "formatted": "Chhatrapati Sambhajinagar, MH, India",
+                    "state": "Maharashtra",
+                    "country": "India",
+                    "lat": 19.88,
+                    "lon": 75.34
+                },
+                {
+                    "name": "Aurangabad",
+                    "formatted": "Aurangabad, WB, India",
+                    "state": "West Bengal",
+                    "country": "India",
+                    "lat": 24.62,
+                    "lon": 88.03
+                },
+                {
+                    "name": "Aurangabad",
+                    "formatted": "Aurangabad, BR, India",
+                    "state": "Bihar",
+                    "country": "India",
+                    "lat": 24.75,
+                    "lon": 84.37
+                }
+            ]
+        }
+    }
+}

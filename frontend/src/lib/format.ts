@@ -12,9 +12,9 @@ export function formatHour(iso: string, timeZone: string): string {
     .padStart(2, "0");
 }
 
-export function formatWeekday(isoDate: string, timeZone: string): string {
-  // A calendar date ("2026-10-24") is local to the place: read it at local noon to avoid day shifts.
-  return new Intl.DateTimeFormat("en-IN", { weekday: "short", timeZone }).format(new Date(`${isoDate}T12:00:00Z`));
+/** A calendar date ("2026-10-25") is already local to the place: format it as-is, with no timezone shift. */
+export function formatWeekday(isoDate: string): string {
+  return new Intl.DateTimeFormat("en-IN", { weekday: "short", timeZone: "UTC" }).format(new Date(`${isoDate}T00:00:00Z`));
 }
 
 export function formatDateTime(iso: string, timeZone: string): string {

@@ -20,7 +20,7 @@ export const OWM_COLOURS: Record<number, string> = {
   2: "#9bbf6e",
   3: "#e6c35c",
   4: "#e0894d",
-  5: "#c4544f",
+  5: "#b84a45",
 };
 export const OWM_NAMES: Record<number, string> = { 1: "Good", 2: "Fair", 3: "Moderate", 4: "Poor", 5: "Very Poor" };
 

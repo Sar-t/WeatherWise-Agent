@@ -1,0 +1,473 @@
+{
+    "location": {
+        "name": "New Delhi",
+        "formatted": "New Delhi, India",
+        "country_code": "in",
+        "timezone": "Asia/Kolkata",
+        "lat": 28.61,
+        "lon": 77.21
+    },
+    "local_time": "2026-10-25T12:57:14.666104+05:30",
+    "current": {
+        "time": "2026-10-25T12:56:26+05:30",
+        "temp_c": 30,
+        "feels_like_c": 30,
+        "condition": "Clear",
+        "description": "clear sky",
+        "icon": "clear-day",
+        "humidity_pct": 41,
+        "wind_kmh": 4,
+        "gust_kmh": 4,
+        "wind_deg": 24,
+        "wind_dir": "NE",
+        "uv_index": 5,
+        "visibility_km": 10.0,
+        "pressure_hpa": 1014,
+        "sunrise": "2026-10-25T06:27:52+05:30",
+        "sunset": "2026-10-25T17:42:25+05:30"
+    },
+    "hourly": [
+        {
+            "time": "2026-10-25T13:30:00+05:30",
+            "temp_c": 30,
+            "feels_like_c": 29,
+            "rain_prob_pct": 0,
+            "wind_kmh": 6,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-25T14:30:00+05:30",
+            "temp_c": 30,
+            "feels_like_c": 29,
+            "rain_prob_pct": 0,
+            "wind_kmh": 7,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-25T15:30:00+05:30",
+            "temp_c": 31,
+            "feels_like_c": 30,
+            "rain_prob_pct": 0,
+            "wind_kmh": 8,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-25T16:30:00+05:30",
+            "temp_c": 31,
+            "feels_like_c": 30,
+            "rain_prob_pct": 0,
+            "wind_kmh": 8,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-25T17:30:00+05:30",
+            "temp_c": 29,
+            "feels_like_c": 28,
+            "rain_prob_pct": 0,
+            "wind_kmh": 9,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-25T18:30:00+05:30",
+            "temp_c": 27,
+            "feels_like_c": 26,
+            "rain_prob_pct": 0,
+            "wind_kmh": 9,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-25T19:30:00+05:30",
+            "temp_c": 27,
+            "feels_like_c": 27,
+            "rain_prob_pct": 0,
+            "wind_kmh": 8,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-25T20:30:00+05:30",
+            "temp_c": 25,
+            "feels_like_c": 24,
+            "rain_prob_pct": 0,
+            "wind_kmh": 6,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-25T21:30:00+05:30",
+            "temp_c": 25,
+            "feels_like_c": 25,
+            "rain_prob_pct": 0,
+            "wind_kmh": 4,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-25T22:30:00+05:30",
+            "temp_c": 26,
+            "feels_like_c": 25,
+            "rain_prob_pct": 0,
+            "wind_kmh": 5,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-25T23:30:00+05:30",
+            "temp_c": 23,
+            "feels_like_c": 22,
+            "rain_prob_pct": 0,
+            "wind_kmh": 3,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-26T00:30:00+05:30",
+            "temp_c": 21,
+            "feels_like_c": 20,
+            "rain_prob_pct": 0,
+            "wind_kmh": 3,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-26T01:30:00+05:30",
+            "temp_c": 21,
+            "feels_like_c": 20,
+            "rain_prob_pct": 0,
+            "wind_kmh": 5,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-26T02:30:00+05:30",
+            "temp_c": 21,
+            "feels_like_c": 20,
+            "rain_prob_pct": 0,
+            "wind_kmh": 4,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-26T03:30:00+05:30",
+            "temp_c": 20,
+            "feels_like_c": 19,
+            "rain_prob_pct": 0,
+            "wind_kmh": 3,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-26T04:30:00+05:30",
+            "temp_c": 20,
+            "feels_like_c": 18,
+            "rain_prob_pct": 0,
+            "wind_kmh": 3,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-26T05:30:00+05:30",
+            "temp_c": 20,
+            "feels_like_c": 18,
+            "rain_prob_pct": 0,
+            "wind_kmh": 4,
+            "condition": "Clear",
+            "icon": "clear-night"
+        },
+        {
+            "time": "2026-10-26T06:30:00+05:30",
+            "temp_c": 21,
+            "feels_like_c": 20,
+            "rain_prob_pct": 0,
+            "wind_kmh": 5,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-26T07:30:00+05:30",
+            "temp_c": 22,
+            "feels_like_c": 21,
+            "rain_prob_pct": 0,
+            "wind_kmh": 5,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-26T08:30:00+05:30",
+            "temp_c": 23,
+            "feels_like_c": 22,
+            "rain_prob_pct": 0,
+            "wind_kmh": 6,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-26T09:30:00+05:30",
+            "temp_c": 28,
+            "feels_like_c": 27,
+            "rain_prob_pct": 0,
+            "wind_kmh": 5,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-26T10:30:00+05:30",
+            "temp_c": 28,
+            "feels_like_c": 27,
+            "rain_prob_pct": 0,
+            "wind_kmh": 6,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-26T11:30:00+05:30",
+            "temp_c": 30,
+            "feels_like_c": 28,
+            "rain_prob_pct": 0,
+            "wind_kmh": 8,
+            "condition": "Clear",
+            "icon": "clear-day"
+        },
+        {
+            "time": "2026-10-26T12:30:00+05:30",
+            "temp_c": 31,
+            "feels_like_c": 29,
+            "rain_prob_pct": 0,
+            "wind_kmh": 10,
+            "condition": "Clear",
+            "icon": "clear-day"
+        }
+    ],
+    "daily": [
+        {
+            "date": "2026-10-25",
+            "min_c": 19,
+            "max_c": 31,
+            "condition": "Clear",
+            "icon": "clear-day",
+            "rain_prob_pct": 0,
+            "rain_mm": 0.0,
+            "uv_index": 5
+        },
+        {
+            "date": "2026-10-26",
+            "min_c": 20,
+            "max_c": 32,
+            "condition": "Clear",
+            "icon": "clear-day",
+            "rain_prob_pct": 0,
+            "rain_mm": 0.0,
+            "uv_index": 6
+        },
+        {
+            "date": "2026-10-27",
+            "min_c": 19,
+            "max_c": 33,
+            "condition": "Clear",
+            "icon": "clear-day",
+            "rain_prob_pct": 0,
+            "rain_mm": 0.0,
+            "uv_index": 6
+        },
+        {
+            "date": "2026-10-28",
+            "min_c": 25,
+            "max_c": 33,
+            "condition": "Clear",
+            "icon": "clear-day",
+            "rain_prob_pct": 0,
+            "rain_mm": 0.0,
+            "uv_index": 6
+        },
+        {
+            "date": "2026-10-29",
+            "min_c": 25,
+            "max_c": 31,
+            "condition": "Clouds",
+            "icon": "partly-cloudy",
+            "rain_prob_pct": 0,
+            "rain_mm": 0.0,
+            "uv_index": 6
+        },
+        {
+            "date": "2026-10-30",
+            "min_c": 23,
+            "max_c": 30,
+            "condition": "Rain",
+            "icon": "rain",
+            "rain_prob_pct": 95,
+            "rain_mm": 2.0,
+            "uv_index": 6
+        },
+        {
+            "date": "2026-10-31",
+            "min_c": 25,
+            "max_c": 32,
+            "condition": "Clear",
+            "icon": "clear-day",
+            "rain_prob_pct": 0,
+            "rain_mm": 0.0,
+            "uv_index": 6
+        },
+        {
+            "date": "2026-11-01",
+            "min_c": 25,
+            "max_c": 32,
+            "condition": "Clear",
+            "icon": "clear-day",
+            "rain_prob_pct": 0,
+            "rain_mm": 0.0,
+            "uv_index": 6
+        }
+    ],
+    "air_quality": {
+        "scale": "naqi",
+        "value": 87,
+        "category": "Satisfactory",
+        "dominant_pollutant": "PM10",
+        "pm2_5": 60,
+        "pm10": 106,
+        "hourly": [
+            {
+                "time": "2026-10-25T13:30:00+05:30",
+                "value": 87,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-25T14:30:00+05:30",
+                "value": 88,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-25T15:30:00+05:30",
+                "value": 99,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-25T16:30:00+05:30",
+                "value": 117,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-25T17:30:00+05:30",
+                "value": 130,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-25T18:30:00+05:30",
+                "value": 137,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-25T19:30:00+05:30",
+                "value": 137,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-25T20:30:00+05:30",
+                "value": 129,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-25T21:30:00+05:30",
+                "value": 120,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-25T22:30:00+05:30",
+                "value": 109,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-25T23:30:00+05:30",
+                "value": 98,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-26T00:30:00+05:30",
+                "value": 99,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-26T01:30:00+05:30",
+                "value": 100,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-26T02:30:00+05:30",
+                "value": 101,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T03:30:00+05:30",
+                "value": 103,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T04:30:00+05:30",
+                "value": 104,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T05:30:00+05:30",
+                "value": 104,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T06:30:00+05:30",
+                "value": 104,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T07:30:00+05:30",
+                "value": 104,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T08:30:00+05:30",
+                "value": 103,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T09:30:00+05:30",
+                "value": 102,
+                "category": "Moderately Polluted"
+            },
+            {
+                "time": "2026-10-26T10:30:00+05:30",
+                "value": 100,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-26T11:30:00+05:30",
+                "value": 99,
+                "category": "Satisfactory"
+            },
+            {
+                "time": "2026-10-26T12:30:00+05:30",
+                "value": 97,
+                "category": "Satisfactory"
+            }
+        ]
+    },
+    "alerts": [],
+    "outdoor_today": {
+        "day": "today",
+        "verdict": "suitable",
+        "score": 100,
+        "best_block": {
+            "start": "2026-10-25T22:30:00+05:30",
+            "end": "2026-10-26T00:30:00+05:30",
+            "score": 100,
+            "verdict": "suitable",
+            "reasons": []
+        },
+        "reason": null
+    }
+}

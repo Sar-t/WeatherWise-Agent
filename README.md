@@ -15,10 +15,11 @@ backend/
   core/       settings (.env) and logging
   services/   geocoding, weather, air quality + NAQI, date resolver, scoring/ (activity profiles)
   agent/      understanding (LLM extraction, resolution, follow-ups), graph, tools, answers, CLI
-  api/        FastAPI routes (later)
+  api/        FastAPI routes
   tests/
 ingestion/    RAG document ingestion (later)
 scripts/      manual smoke scripts (real APIs)
+frontend/     Next.js dashboard
 evals/        real-LLM evals for understanding and answers
 ```
 
@@ -98,6 +99,36 @@ curl -s "localhost:8000/api/v1/dashboard?place=Pune" -H "X-Client-Id: $ID"
 
 Device coordinates are rounded to 2 decimals (~1 km) on arrival and are never stored or logged
 more precisely.
+
+## Frontend (dashboard)
+
+The dashboard in `frontend/` is a Next.js app that reads the HTTP API above. Needs Node 20.9+.
+
+Run the two in separate terminals:
+
+```bash
+# 1. Backend, from the repo root (with the virtualenv active)
+uvicorn backend.api.app:app --port 8000
+
+# 2. Frontend
+cd frontend
+npm install                                     # once
+cp .env.example .env.local                      # once: NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+npm run dev                                     # http://localhost:3000
+```
+
+Open http://localhost:3000, or http://localhost:3000/?place=Pune to start with a place. The backend
+allows the frontend's origin through `CORS_ORIGINS` (default `http://localhost:3000`); change both
+together if you use another port.
+
+```bash
+npm test                                        # Vitest: helpers and UI states, with a mocked API
+npm run lint
+npm run gen:api                                 # after an API change: re-export openapi.json, then regenerate types
+```
+
+The browser keeps two things in localStorage: an anonymous client ID and the last place viewed
+(coordinates rounded to 2 decimals). Location is asked for only when you click "Use my location".
 
 ## Evals (real LLM, run manually)
 

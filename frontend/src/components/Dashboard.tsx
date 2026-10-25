@@ -5,7 +5,14 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, fetchDashboard, placeKey, type Candidate, type Place } from "@/lib/api";
 import { loadPlace, savePlace } from "@/lib/location-store";
+import type { Dashboard as DashboardData } from "@/lib/api";
+import { formatTime } from "@/lib/format";
 import { AirQualityCard } from "./AirQualityCard";
+import { AlertsBanner } from "./AlertsBanner";
+import { BestTimeCard } from "./BestTimeCard";
+import { DailyForecast } from "./DailyForecast";
+import { DetailTiles } from "./DetailTiles";
+import { HourlyStrip } from "./HourlyStrip";
 import { Header } from "./Header";
 import { Hero } from "./Hero";
 import { WelcomeCard } from "./WelcomeCard";
@@ -140,22 +147,48 @@ export function Dashboard() {
           <DashboardSkeleton />
         ) : !place || shownAmbiguous ? (
           <WelcomeCard onUseLocation={useLocation} onSearch={() => searchRef.current?.focus()} locating={locating} />
+        ) : data ? (
+          <DashboardView data={data} stale={shown.isRefetchError} />
         ) : shown.isError ? (
           <ErrorCard message={errorMessage(shown.error)} onRetry={() => void shown.refetch()} />
-        ) : data ? (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="flex flex-col gap-6">
-              <Hero data={data} />
-            </div>
-            <aside className="flex flex-col gap-6" aria-label="Air quality and outdoor outlook">
-              <AirQualityCard air={data.air_quality} timeZone={data.location.timezone} />
-            </aside>
-          </div>
         ) : null}
       </main>
 
       {/* Reserved for the assistant (step 5b): a floating button bottom-right. */}
       <div id="assistant-slot" className="fixed bottom-6 right-6 z-30" />
+    </div>
+  );
+}
+
+/**
+ * Two columns on large screens; one on phones, in reading order: alerts, hero, best time, hourly,
+ * air quality, 7-day, details. The column wrappers dissolve on phones (display: contents) so each
+ * card can take its own place in that order.
+ */
+function DashboardView({ data, stale }: { data: DashboardData; stale: boolean }) {
+  const tz = data.location.timezone;
+  return (
+    <div className="flex flex-col gap-6">
+      {stale && (
+        <p role="status" className="text-sm text-ink-soft">
+          Couldn&apos;t refresh just now. Showing the forecast from {formatTime(data.current.time, tz)}.
+        </p>
+      )}
+      <AlertsBanner alerts={data.alerts ?? []} timeZone={tz} />
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="contents lg:flex lg:flex-col lg:gap-6">
+          <div className="order-1 lg:order-none"><Hero data={data} /></div>
+          <div className="order-3 lg:order-none"><HourlyStrip hours={data.hourly} timeZone={tz} /></div>
+          <div className="order-5 lg:order-none"><DailyForecast daily={data.daily} /></div>
+        </div>
+        <div className="contents lg:flex lg:flex-col lg:gap-6">
+          <div className="order-2 lg:order-none"><BestTimeCard outdoor={data.outdoor_today} timeZone={tz} /></div>
+          <div className="order-4 lg:order-none"><AirQualityCard air={data.air_quality} timeZone={tz} /></div>
+          <div className="order-6 lg:order-none">
+            <DetailTiles current={data.current} now={data.local_time} timeZone={tz} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

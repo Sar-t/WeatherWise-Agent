@@ -4,6 +4,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import type { DashboardAir } from "@/lib/api";
 import { NAQI_COLOURS, OWM_COLOURS, naqiStyle, owmStyle } from "@/lib/aqi";
 import { formatHour, formatTime } from "@/lib/format";
+import { Card, CardTitle } from "./Card";
 
 const POLLUTANT_NAMES: Record<string, string> = {
   "PM2.5": "PM2.5",
@@ -109,12 +110,7 @@ export function AirQualityCard({ air, timeZone }: { air: DashboardAir | null | u
 
 function Title({ scale }: { scale: "naqi" | "owm" | null }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <h2 className="text-[0.95rem] font-semibold text-ink">Air quality</h2>
-      {scale && (
-        <p className="text-xs text-muted">{scale === "naqi" ? "India NAQI (CPCB)" : "OpenWeather scale, 1–5"}</p>
-      )}
-    </div>
+    <CardTitle meta={scale && (scale === "naqi" ? "India NAQI (CPCB)" : "OpenWeather scale, 1–5")}>Air quality</CardTitle>
   );
 }
 
@@ -127,13 +123,5 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
         {unit && <span className="ml-1 text-xs font-normal text-muted">{unit}</span>}
       </dd>
     </div>
-  );
-}
-
-export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <section className={`rounded-[var(--radius-card)] border border-line/80 bg-surface p-6 shadow-card ${className}`}>
-      {children}
-    </section>
   );
 }
