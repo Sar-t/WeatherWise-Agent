@@ -98,7 +98,7 @@ export function SunCard({ current, now, timeZone }: { current: CurrentOut; now: 
   if (!current.sunrise || !current.sunset) return null; // polar day or night, or no data
   return (
     <Card>
-      <CardTitle meta={`${dayLength(current.sunrise, current.sunset)} of daylight`}>Sunrise and sunset</CardTitle>
+      <CardTitle>Sunrise and sunset</CardTitle>
       <div className="mt-3">
         <SunArc now={now} sunrise={current.sunrise} sunset={current.sunset} timeZone={timeZone} />
       </div>
@@ -146,6 +146,7 @@ function SunArc({ now, sunrise, sunset, timeZone }: { now: string; sunrise: stri
       <p className="tabular text-right">
         <span className="block text-xs text-muted">Sunset</span>
         {set}
+        <span className="block text-xs text-muted">{dayLength(sunrise, sunset)} of daylight</span>
       </p>
     </figure>
   );

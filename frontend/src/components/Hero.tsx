@@ -1,6 +1,7 @@
 "use client";
 
 import type { Dashboard } from "@/lib/api";
+import { daySummary } from "@/lib/details";
 import { formatTemp, formatTime, secondaryPlaceLine } from "@/lib/format";
 import { SKY_GRADIENTS, skyTheme, type SkyPhase } from "@/lib/sky";
 import { ICON_LABELS, WeatherIcon, type IconKey } from "./icons/WeatherIcon";
@@ -41,6 +42,7 @@ export function Hero({ data }: { data: Dashboard }) {
   const text = sky.dark ? "text-night-ink" : "text-ink";
   const soft = sky.dark ? "text-night-soft" : "text-ink-soft";
   const secondary = secondaryPlaceLine(location.name, location.formatted);
+  const summary = daySummary(data.hourly, data.local_time, tz);
 
   return (
     <section
@@ -85,9 +87,32 @@ export function Hero({ data }: { data: Dashboard }) {
               </>
             )}
           </p>
+          {summary.parts.length > 0 && (
+            <p className={`mt-3 text-[0.95rem] lg:hidden ${soft}`}>
+              <span className="sr-only">{summary.label}: </span>
+              {summary.parts.join(" · ")}
+            </p>
+          )}
         </div>
 
-        <p className={`tabular text-sm ${soft}`}>Observed {formatTime(current.time, tz)}</p>
+        <div className="flex flex-col gap-6 lg:items-end lg:self-stretch lg:justify-between">
+          {summary.parts.length > 0 && (
+            <section
+              aria-label={`${summary.label} at a glance`}
+              className={`hidden min-w-[15rem] rounded-2xl px-5 py-4 lg:block ${
+                sky.dark ? "bg-white/10" : "bg-white/55 ring-1 ring-white/70"
+              }`}
+            >
+              <p className={`text-xs font-semibold tracking-wide uppercase ${soft}`}>{summary.label}</p>
+              <ul className="tabular mt-2 flex flex-col gap-1.5 text-[0.95rem]">
+                {summary.parts.map((part) => (
+                  <li key={part}>{part[0].toUpperCase() + part.slice(1)}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <p className={`tabular text-sm ${soft}`}>Observed {formatTime(current.time, tz)}</p>
+        </div>
       </div>
     </section>
   );

@@ -160,10 +160,14 @@ export function Dashboard() {
   );
 }
 
+// The last card in a column takes up the rest of it, so both columns end level.
+const FILL = "lg:order-none lg:flex-1 lg:[&>section]:h-full";
+
 /**
  * Two columns on large screens; one on phones, in reading order: alerts, hero, best time, hourly,
  * air quality, 7-day, details, sunrise and sunset. The column wrappers dissolve on phones (display: contents) so each
- * card can take its own place in that order.
+ * card can take its own place in that order. On large screens both columns end level: the last card in
+ * each one stretches, and sunrise and sunset spans the full width below.
  */
 function DashboardView({ data, stale }: { data: DashboardData; stale: boolean }) {
   const tz = data.location.timezone;
@@ -175,21 +179,19 @@ function DashboardView({ data, stale }: { data: DashboardData; stale: boolean })
         </p>
       )}
       <AlertsBanner alerts={data.alerts ?? []} timeZone={tz} />
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="contents lg:flex lg:flex-col lg:gap-6">
           <div className="order-1 lg:order-none"><Hero data={data} /></div>
           <div className="order-3 lg:order-none"><HourlyStrip hours={data.hourly} timeZone={tz} /></div>
-          <div className="order-5 lg:order-none"><DailyForecast daily={data.daily} /></div>
-          <div className="order-7 lg:order-none">
-            <SunCard current={data.current} now={data.local_time} timeZone={tz} />
-          </div>
+          <div className={`order-5 ${FILL}`}><DailyForecast daily={data.daily} /></div>
         </div>
         <div className="contents lg:flex lg:flex-col lg:gap-6">
           <div className="order-2 lg:order-none"><BestTimeCard outdoor={data.outdoor_today} timeZone={tz} /></div>
           <div className="order-4 lg:order-none"><AirQualityCard air={data.air_quality} timeZone={tz} /></div>
-          <div className="order-6 lg:order-none"><DetailTiles current={data.current} /></div>
+          <div className={`order-6 ${FILL}`}><DetailTiles current={data.current} /></div>
         </div>
       </div>
+      <SunCard current={data.current} now={data.local_time} timeZone={tz} />
     </div>
   );
 }

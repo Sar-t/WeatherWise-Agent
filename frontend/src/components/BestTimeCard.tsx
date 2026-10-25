@@ -1,5 +1,5 @@
 import type { OutdoorOut } from "@/lib/api";
-import { VERDICT_LABELS, timeRange } from "@/lib/details";
+import { VERDICT_LABELS, outlookReasons, timeRange } from "@/lib/details";
 import { keepUnits } from "@/lib/format";
 import { Card, CardTitle } from "./Card";
 
@@ -20,7 +20,7 @@ export function BestTimeCard({ outdoor, timeZone }: { outdoor: OutdoorOut | null
     );
   }
   const block = outdoor.best_block;
-  const reasons = block?.reasons?.length ? block.reasons : outdoor.reason ? [outdoor.reason] : [];
+  const reasons = outlookReasons(block?.reasons?.length ? block.reasons : outdoor.reason ? [outdoor.reason] : []);
 
   return (
     <Card>

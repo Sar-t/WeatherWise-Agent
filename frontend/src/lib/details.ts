@@ -104,3 +104,67 @@ export function tempColour(celsius: number): string {
   const f = Math.min(Math.max((celsius - t0) / (t1 - t0), 0), 1);
   return `#${a.map((c, i) => Math.round(c + (b[i] - c) * f).toString(16).padStart(2, "0")).join("")}`;
 }
+
+// The scoring engine's lead-in for a usable block ("mostly good; ..."); the verdict chip already says it.
+const CAUTION_PREFIXES = new Set(["mostly good", "possible with care"]);
+
+/** Reasons for the best-time card, without a lead-in that only repeats the verdict. */
+export function outlookReasons(reasons: string[]): string[] {
+  return reasons.length > 1 && CAUTION_PREFIXES.has(reasons[0].toLowerCase()) ? reasons.slice(1) : reasons;
+}
+
+const SKY_GROUPS: Record<string, string> = {
+  "clear-day": "clear",
+  "clear-night": "clear",
+  "partly-cloudy": "partly cloudy",
+  "partly-cloudy-night": "partly cloudy",
+  cloudy: "cloudy",
+  rain: "wet",
+  "heavy-rain": "wet",
+  drizzle: "wet",
+  thunderstorm: "stormy",
+  fog: "foggy",
+  haze: "hazy",
+  snow: "snowy",
+  wind: "windy",
+};
+
+/**
+ * A one-glance summary of the rest of today from the hourly forecast (no LLM), e.g.
+ * ["Clear all day", "warmest 31° around 15:00", "no rain expected"]. With under 3 hours of today
+ * left it covers the next 24 hours instead.
+ */
+export function daySummary(hours: HourOut[], now: string, timeZone: string): { label: string; parts: string[] } {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(now));
+  const todays = hours.filter((h) => new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(h.time)) === today);
+  const [label, span] = todays.length >= 3 ? ["Today", todays] : ["Next 24 hours", hours];
+  if (!span.length) return { label, parts: [] };
+
+  const counts = new Map<string, number>();
+  for (const h of span) {
+    const group = SKY_GROUPS[h.icon] ?? "cloudy";
+    counts.set(group, (counts.get(group) ?? 0) + 1);
+  }
+  const [group, count] = [...counts].reduce((a, b) => (b[1] > a[1] ? b : a));
+  const share = count / span.length;
+  const sky = share === 1 ? `${group} ${label === "Today" ? "all day" : "throughout"}` : share >= 0.6 ? `mostly ${group}` : "mixed skies";
+
+  const warmest = span.reduce((a, b) => (b.temp_c > a.temp_c ? b : a));
+  const wettest = span.reduce((a, b) => ((b.rain_prob_pct ?? 0) > (a.rain_prob_pct ?? 0) ? b : a));
+  const rain = Math.round(wettest.rain_prob_pct ?? 0);
+  const rainText =
+    rain < 10
+      ? "no rain expected"
+      : rain < 30
+        ? "small chance of rain"
+        : `${rain}% chance of rain around ${formatHour(wettest.time, timeZone)}:00`;
+
+  return {
+    label,
+    parts: [
+      sky[0].toUpperCase() + sky.slice(1),
+      `warmest ${formatTemp(warmest.temp_c)} around ${formatHour(warmest.time, timeZone)}:00`,
+      rainText,
+    ],
+  };
+}
