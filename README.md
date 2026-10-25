@@ -127,8 +127,12 @@ npm run lint
 npm run gen:api                                 # after an API change: re-export openapi.json, then regenerate types
 ```
 
-The browser keeps two things in localStorage: an anonymous client ID and the last place viewed
-(coordinates rounded to 2 decimals). Location is asked for only when you click "Use my location".
+The "Ask WeatherWise" button opens the assistant, which streams answers from `/api/v1/chat/stream`
+about the dashboard's place (or any place named in the question). It needs the backend's LLM keys.
+
+The browser keeps three things in localStorage: an anonymous client ID, the last place viewed
+(coordinates rounded to 2 decimals) and the current conversation's ID. Location is asked for only
+when you click "Use my location".
 
 ## Evals (real LLM, run manually)
 

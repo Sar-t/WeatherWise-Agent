@@ -42,11 +42,14 @@ body {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* One visible focus style everywhere. */
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: 0.5rem;
+/* One visible focus style everywhere. In the base layer, so a field whose wrapper already shows
+   focus (search, the assistant's question box) can turn it off with a utility. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
 }
 
 /* Sky layers fade, never flash. */

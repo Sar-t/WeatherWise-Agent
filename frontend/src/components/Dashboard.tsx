@@ -8,6 +8,7 @@ import { loadPlace, savePlace } from "@/lib/location-store";
 import type { Dashboard as DashboardData } from "@/lib/api";
 import { formatTime } from "@/lib/format";
 import { AirQualityCard } from "./AirQualityCard";
+import { Assistant } from "./assistant/Assistant";
 import { AlertsBanner } from "./AlertsBanner";
 import { BestTimeCard } from "./BestTimeCard";
 import { DailyForecast } from "./DailyForecast";
@@ -60,6 +61,7 @@ export function Dashboard() {
   const [note, setNote] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [dismissed, setDismissed] = useState<string | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const shown = useQuery({
     ...(place ? dashboardQuery(place) : { queryKey: ["dashboard", null], queryFn: () => Promise.reject() }),
@@ -124,7 +126,7 @@ export function Dashboard() {
   const choices = candidates.length ? candidates : shownChoices;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className={`flex min-h-screen flex-col transition-[padding] duration-300 motion-reduce:transition-none ${assistantOpen ? "xl:pr-[420px]" : ""}`}>
       <Header
         timeZone={data?.location.timezone}
         placeName={data?.location.name}
@@ -154,8 +156,9 @@ export function Dashboard() {
         ) : null}
       </main>
 
-      {/* Reserved for the assistant (step 5b): a floating button bottom-right. */}
-      <div id="assistant-slot" className="fixed bottom-6 right-6 z-30" />
+      <div id="assistant-slot" className="fixed bottom-6 right-6 z-30">
+        <Assistant data={data} open={assistantOpen} onOpen={() => setAssistantOpen(true)} onClose={() => setAssistantOpen(false)} />
+      </div>
     </div>
   );
 }

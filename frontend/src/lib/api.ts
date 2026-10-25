@@ -12,6 +12,13 @@ export type DayOut = components["schemas"]["DayOut"];
 export type CurrentOut = components["schemas"]["CurrentOut"];
 export type AlertOut = components["schemas"]["AlertOut"];
 export type OutdoorOut = components["schemas"]["OutdoorOut"];
+export type ChatRequest = components["schemas"]["ChatRequest"];
+export type ChatResponse = components["schemas"]["ChatResponse"];
+export type AssessmentOut = components["schemas"]["AssessmentOut"];
+export type AirQualityOut = components["schemas"]["AirQualityCard"];
+export type SourceOut = components["schemas"]["SourceOut"];
+export type ConversationOut = components["schemas"]["ConversationOut"];
+export type ConversationDetail = components["schemas"]["ConversationDetail"];
 
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
@@ -38,17 +45,19 @@ export function placeKey(place: Place): string {
   return place.kind === "coords" ? `${place.lat.toFixed(2)},${place.lon.toFixed(2)}` : place.name.trim().toLowerCase();
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/** Sends a request with the client ID; any failure (network or non-2xx) becomes an ApiError. */
+export async function send(path: string, init?: RequestInit): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: { "X-Client-Id": getClientId(), Accept: "application/json", ...init?.headers },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError(0, "network_error", "Can't reach WeatherWise right now. Check your connection.");
   }
-  if (response.ok) return (await response.json()) as T;
+  if (response.ok) return response;
 
   let body: { error?: { code?: string; message?: string; details?: { candidates?: Candidate[] } } } = {};
   try {
@@ -64,6 +73,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     retry ? Number(retry) : null,
     body.error?.details?.candidates ?? [],
   );
+}
+
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await (await send(path, init)).json()) as T;
 }
 
 export function fetchDashboard(place: Place, signal?: AbortSignal): Promise<Dashboard> {

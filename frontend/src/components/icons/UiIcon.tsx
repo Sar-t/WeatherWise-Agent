@@ -1,6 +1,6 @@
 /** Small interface icons in the same stroke style as the weather set. */
 
-type Name = "search" | "locate" | "pin" | "alert" | "refresh" | "close" | "chevron-left" | "chevron-right";
+type Name = "search" | "locate" | "pin" | "alert" | "refresh" | "close" | "chevron-left" | "chevron-right" | "history" | "plus" | "trash";
 
 const PATHS: Record<Name, React.ReactNode> = {
   search: (
@@ -40,6 +40,26 @@ const PATHS: Record<Name, React.ReactNode> = {
   ),
   "chevron-left": <polyline points="14.5 6 8.5 12 14.5 18" />,
   "chevron-right": <polyline points="9.5 6 15.5 12 9.5 18" />,
+  history: (
+    <>
+      <path d="M4 12a8 8 0 1 0 2.3-5.6" />
+      <polyline points="4 4.5 4 8.5 8 8.5" />
+      <polyline points="12 8 12 12 15 14" />
+    </>
+  ),
+  plus: (
+    <>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </>
+  ),
+  trash: (
+    <>
+      <polyline points="4.5 7 19.5 7" />
+      <path d="M9.5 7V4.8h5V7" />
+      <path d="M6.5 7l.9 12.2a1 1 0 0 0 1 .8h7.2a1 1 0 0 0 1-.8L17.5 7" />
+    </>
+  ),
   close: (
     <>
       <line x1="6" y1="6" x2="18" y2="18" />

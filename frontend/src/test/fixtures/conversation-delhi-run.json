@@ -1,0 +1,172 @@
+{
+    "conversation": {
+        "id": "7b0584a2-5eda-45d7-adb6-2119ec3f941c",
+        "title": "Can I go for a run in Delhi tomorrow evening? What precautio",
+        "created_at": "2026-10-25T16:28:06.807620Z",
+        "updated_at": "2026-10-25T16:28:11.052665Z"
+    },
+    "messages": [
+        {
+            "role": "user",
+            "text": "Can I go for a run in Delhi tomorrow evening? What precautions should I take for the air pollution?",
+            "kind": "answer",
+            "response": null,
+            "created_at": "2026-10-25T16:28:11.052665Z"
+        },
+        {
+            "role": "assistant",
+            "text": "Running in Delhi tomorrow evening is a good idea as conditions are rated suitable with a score of 100/100. The best time for your run is between 20:30 and 21:30 when the air quality index improves to NAQI 99, Satisfactory. Earlier in the evening at 17:30, the NAQI is 130, Moderately Polluted with Ozone (O3) as the main pollutant. Temperatures are expected to drop from 30\u00c2\u00b0C to 25\u00c2\u00b0C with no chance of rain and light winds reaching 12 km/h. Per CPCB guidance for Moderately Polluted air, sensitive groups should cut down on long periods of exertion outdoors and watch for symptoms. If you are in a sensitive group, the CPCB advises reducing prolonged outdoor exertion.",
+            "kind": "answer",
+            "response": {
+                "conversation_id": "7b0584a2-5eda-45d7-adb6-2119ec3f941c",
+                "kind": "answer",
+                "text": "Running in Delhi tomorrow evening is a good idea as conditions are rated suitable with a score of 100/100. The best time for your run is between 20:30 and 21:30 when the air quality index improves to NAQI 99, Satisfactory. Earlier in the evening at 17:30, the NAQI is 130, Moderately Polluted with Ozone (O3) as the main pollutant. Temperatures are expected to drop from 30\u00c2\u00b0C to 25\u00c2\u00b0C with no chance of rain and light winds reaching 12 km/h. Per CPCB guidance for Moderately Polluted air, sensitive groups should cut down on long periods of exertion outdoors and watch for symptoms. If you are in a sensitive group, the CPCB advises reducing prolonged outdoor exertion.",
+                "cards": [
+                    {
+                        "location": {
+                            "name": "New Delhi",
+                            "formatted": "New Delhi, India",
+                            "country_code": "in",
+                            "timezone": "Asia/Kolkata",
+                            "lat": 28.61,
+                            "lon": 77.21
+                        },
+                        "kind": "hourly",
+                        "window_start": "2026-10-26T17:00:00+05:30",
+                        "window_end": "2026-10-26T21:00:00+05:30",
+                        "hourly": [
+                            {
+                                "time": "2026-10-26T17:30:00+05:30",
+                                "temp_c": 30,
+                                "feels_like_c": 28,
+                                "rain_prob_pct": 0,
+                                "wind_kmh": 12,
+                                "condition": "Clear",
+                                "icon": "clear-day"
+                            },
+                            {
+                                "time": "2026-10-26T18:30:00+05:30",
+                                "temp_c": 27,
+                                "feels_like_c": 26,
+                                "rain_prob_pct": 0,
+                                "wind_kmh": 9,
+                                "condition": "Clear",
+                                "icon": "clear-night"
+                            },
+                            {
+                                "time": "2026-10-26T19:30:00+05:30",
+                                "temp_c": 26,
+                                "feels_like_c": 26,
+                                "rain_prob_pct": 0,
+                                "wind_kmh": 6,
+                                "condition": "Clear",
+                                "icon": "clear-night"
+                            },
+                            {
+                                "time": "2026-10-26T20:30:00+05:30",
+                                "temp_c": 25,
+                                "feels_like_c": 24,
+                                "rain_prob_pct": 0,
+                                "wind_kmh": 4,
+                                "condition": "Clear",
+                                "icon": "clear-night"
+                            }
+                        ],
+                        "daily": [],
+                        "alerts": []
+                    }
+                ],
+                "air_quality": [
+                    {
+                        "location": {
+                            "name": "New Delhi",
+                            "formatted": "New Delhi, India",
+                            "country_code": "in",
+                            "timezone": "Asia/Kolkata",
+                            "lat": 28.61,
+                            "lon": 77.21
+                        },
+                        "scale": "naqi",
+                        "value": 130,
+                        "category": "Moderately Polluted",
+                        "dominant_pollutant": "O3",
+                        "worst_at": "2026-10-26T17:30:00+05:30",
+                        "pm2_5": 33,
+                        "pm10": 56,
+                        "window_start": "2026-10-26T17:00:00+05:30",
+                        "window_end": "2026-10-26T21:00:00+05:30",
+                        "hourly": [
+                            {
+                                "time": "2026-10-26T17:30:00+05:30",
+                                "value": 130,
+                                "category": "Moderately Polluted"
+                            },
+                            {
+                                "time": "2026-10-26T18:30:00+05:30",
+                                "value": 124,
+                                "category": "Moderately Polluted"
+                            },
+                            {
+                                "time": "2026-10-26T19:30:00+05:30",
+                                "value": 113,
+                                "category": "Moderately Polluted"
+                            },
+                            {
+                                "time": "2026-10-26T20:30:00+05:30",
+                                "value": 99,
+                                "category": "Satisfactory"
+                            }
+                        ]
+                    }
+                ],
+                "assessments": [
+                    {
+                        "activity": "running",
+                        "profile": "running",
+                        "verdict": "suitable",
+                        "score": 100,
+                        "location": {
+                            "name": "New Delhi",
+                            "formatted": "New Delhi, India",
+                            "country_code": "in",
+                            "timezone": "Asia/Kolkata",
+                            "lat": 28.61,
+                            "lon": 77.21
+                        },
+                        "best_blocks": [
+                            {
+                                "start": "2026-10-26T20:30:00+05:30",
+                                "end": "2026-10-26T21:30:00+05:30",
+                                "score": 100,
+                                "verdict": "suitable",
+                                "reasons": []
+                            },
+                            {
+                                "start": "2026-10-26T19:30:00+05:30",
+                                "end": "2026-10-26T20:30:00+05:30",
+                                "score": 98,
+                                "verdict": "suitable",
+                                "reasons": [
+                                    "mostly good",
+                                    "NAQI 113, Moderately Polluted around 19:30"
+                                ]
+                            }
+                        ],
+                        "avoid_blocks": [],
+                        "hints": [],
+                        "notes": [],
+                        "daily_estimate": false
+                    }
+                ],
+                "sources": [
+                    {
+                        "title": "NAQI Moderately Polluted (101-200): who should take care",
+                        "source_name": "CPCB (Central Pollution Control Board)",
+                        "url": "https://app.cpcbccr.com/ccr_docs/About_AQI.pdf"
+                    }
+                ]
+            },
+            "created_at": "2026-10-25T16:28:11.052665Z"
+        }
+    ]
+}

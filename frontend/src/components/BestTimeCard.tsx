@@ -3,7 +3,7 @@ import { VERDICT_LABELS, outlookReasons, timeRange } from "@/lib/details";
 import { keepUnits } from "@/lib/format";
 import { Card, CardTitle } from "./Card";
 
-const VERDICT_STYLES: Record<OutdoorOut["verdict"], string> = {
+export const VERDICT_STYLES: Record<OutdoorOut["verdict"], string> = {
   suitable: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   marginal: "bg-amber-50 text-amber-900 ring-amber-200",
   not_suitable: "bg-red-50 text-red-800 ring-red-200",
