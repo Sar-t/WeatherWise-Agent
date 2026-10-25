@@ -40,7 +40,8 @@ def pleasant() -> list:
 
 
 def hot() -> list:
-    return [assess_activity("running", [with_hours(at(6), 2, {0: {"feels_like_c": 34}})], now=NOW)]
+    hot_hour = {"feels_like_c": 34}  # every hour, so the best block is hot too
+    return [assess_activity("running", [with_hours(at(6), 2, {0: hot_hour, 1: hot_hour})], now=NOW)]
 
 
 def alert(event: str) -> WeatherAlert:
@@ -102,6 +103,14 @@ def test_audience_needs_less_than_ideal_conditions() -> None:
 def test_pregnant_maps_to_sensitive_groups() -> None:
     req = plan_guidance(u(intent="activity_recommendation", audience="pregnant"), hot(), [], [])
     assert req.audience == "sensitive_groups"
+
+
+def test_poor_air_and_severe_alerts_count_whatever_the_blocks() -> None:
+    # The best block is perfect, so it adds no topics; Poor air and a severe alert still do.
+    req = plan_guidance(u(intent="activity_recommendation", recommendation_type="suitability"), pleasant(),
+                        [air_result()], [alert("Heat Wave")])
+    assert req.topics == ["heat", "air_quality"] and req.severity == "NAQI Poor; heat wave"
+    assert set(req.reasons) == {"NAQI Poor or worse", "severe alert"}
 
 
 def test_combined_severity_and_request_shape() -> None:

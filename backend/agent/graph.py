@@ -193,7 +193,8 @@ def build_graph(extractor: Extractor = extract, answer_llm: Any = None, checkpoi
         a missing index or failed retrieval means an answer without guidance."""
         assessments, air_cards = state.get("assessments") or [], state.get("air_cards") or []
         alerts = [a for card in state.get("cards") or [] for a in card.alerts]
-        update: dict = {"guideline_topics": guideline_topics(assessments, alerts), "sources": [],
+        u = state["resolved"].understanding
+        update: dict = {"guideline_topics": guideline_topics(assessments, alerts, u.recommendation_type), "sources": [],
                         "guidance_note": None}
         request = plan_guidance(state["resolved"].understanding, assessments, air_cards, alerts)
         if request is None:

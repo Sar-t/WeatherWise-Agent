@@ -72,7 +72,7 @@ def plan_guidance(
     """The retrieval request for this turn, or None when there's no reason to look anything up."""
     keywords = [k.lower() for k in load_config().severe_alert_keywords]
     severe = [a for a in alerts if any(k in a.event.lower() for k in keywords)]
-    assessed = guideline_topics(assessments, [])
+    assessed = guideline_topics(assessments, [], u.recommendation_type)
     naqi, category = _worst_india_naqi(air_cards)
 
     reasons = []
@@ -90,7 +90,7 @@ def plan_guidance(
     if not reasons:
         return None
 
-    topics = set(guideline_topics(assessments, alerts))
+    topics = set(guideline_topics(assessments, alerts, u.recommendation_type))
     if naqi is not None and (naqi >= POOR_NAQI or (
             naqi > SATISFACTORY_NAQI_MAX and wants_air_quality(u) and (u.asks_precautions or u.audience))):
         topics.add("air_quality")

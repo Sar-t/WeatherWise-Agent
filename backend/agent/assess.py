@@ -53,15 +53,31 @@ def assess_place(
                            hints_from="window" if packing else "best_block")
 
 
-def guideline_topics(assessments: list[ActivityAssessment], alerts: list[WeatherAlert]) -> list[str]:
-    """Topics for the guidelines step: factors that lost points, hard stops and caps, and active
-    severe alerts (matched with the scoring engine's keywords)."""
+BLOCK_SCOPED_WITH_AVOID = {"avoid", "travel_timing"}
+
+
+def topic_hours(a: ActivityAssessment, recommendation_type: str | None = None) -> list:
+    """The hours whose conditions guidance should address: the best block's (what the user will
+    actually do), plus the avoid blocks' for avoid / travel_timing questions. Without either
+    block, every hour."""
+    blocks = list(a.best_blocks[:1])
+    if recommendation_type in BLOCK_SCOPED_WITH_AVOID:
+        blocks += a.avoid_blocks
+    if not blocks:
+        return list(a.hourly)
+    return [h for h in a.hourly if any(b.start <= h.time < b.end for b in blocks)]
+
+
+def guideline_topics(assessments: list[ActivityAssessment], alerts: list[WeatherAlert],
+                     recommendation_type: str | None = None) -> list[str]:
+    """Topics for the guidelines step: factors that lost points, hard stops and caps in the hours
+    that matter (see topic_hours), and active severe alerts (the scoring engine's keywords)."""
     config = load_config()
     topics: set[str] = set()
     for a in assessments:
         feels = config.profiles[a.profile].factors["feels_like_c"]
         assert isinstance(feels, TwoSided)
-        for hour in a.hourly:
+        for hour in topic_hours(a, recommendation_type):
             for f in hour.factors:
                 if not f.reason:  # lost < 5 points
                     continue

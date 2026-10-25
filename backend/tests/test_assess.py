@@ -46,7 +46,10 @@ def test_profile_for(understanding: QueryUnderstanding, expected: str) -> None:
 
 
 def topics_for(changes: dict, activity: str = "running", aq=None, alerts=()) -> list[str]:
-    return guideline_topics([assess_activity(activity, [with_hours(at(6), 3, changes)], aq, now=NOW)], list(alerts))
+    """Topics for ONE hour carrying all `changes` (so it is the best block, whose hours count)."""
+    merged = {k: v for change in changes.values() for k, v in change.items()}
+    return guideline_topics([assess_activity(activity, [with_hours(at(6), 1, {0: merged})], aq, now=NOW)],
+                            list(alerts))
 
 
 def test_pleasant_hours_raise_no_topics() -> None:
@@ -74,8 +77,8 @@ def test_small_losses_and_visibility_raise_no_topic() -> None:
 
 
 def test_air_quality_topic_from_naqi() -> None:
-    assert topics_for({}, aq=[air(at(6), 3, changes={1: 250})]) == ["air_quality"]
-    assert topics_for({}, aq=[air(at(6), 3, changes={1: 420})]) == ["air_quality"]  # Severe: a hard stop
+    assert topics_for({}, aq=[air(at(6), 3, changes={0: 250})]) == ["air_quality"]
+    assert topics_for({}, aq=[air(at(6), 3, changes={0: 420})]) == ["air_quality"]  # Severe: a hard stop
 
 
 def test_topics_come_in_a_fixed_order() -> None:
@@ -111,7 +114,31 @@ def test_daily_thunderstorm_cap_raises_the_thunderstorm_topic() -> None:
     assert guideline_topics([a], []) == ["thunderstorm"]
 
 
+def test_topics_come_from_the_best_block_not_from_hours_outside_it() -> None:
+    # Like Delhi's morning run: 06:00-07:00 perfect (the best block), warm hours after it.
+    warm = {"feels_like_c": 29}
+    a = assess_activity("running", [with_hours(at(6), 4, {1: warm, 2: warm, 3: warm})], now=NOW)
+    assert (a.best_blocks[0].start, a.best_blocks[0].average_score) == (at(6), 100)
+    assert any(f.reason for h in a.hourly[1:] for f in h.factors)  # the warm hours did lose points
+    for kind in ("suitability", "best_time", None):
+        assert guideline_topics([a], [], kind) == []
+
+
+def test_avoid_and_travel_timing_also_count_the_avoid_blocks() -> None:
+    hot = {"feels_like_c": 38}  # scores 0: an avoid block
+    a = assess_activity("running", [with_hours(at(6), 3, {2: hot})], now=NOW)
+    assert a.avoid_blocks and a.best_blocks[0].average_score == 100
+    assert guideline_topics([a], [], "suitability") == []
+    assert guideline_topics([a], [], "avoid") == guideline_topics([a], [], "travel_timing") == ["heat"]
+
+
+def test_without_blocks_every_hour_counts() -> None:
+    hot = {"feels_like_c": 33}
+    a = assess_activity("hiking", [with_hours(at(21), 2, {0: hot, 1: hot})], now=NOW)  # night: no daylight block
+    assert a.best_blocks == [] and guideline_topics([a], []) == ["heat"]
+
+
 def test_topics_merge_across_places() -> None:
-    hot = assess_activity("running", [with_hours(at(6), 2, {0: {"feels_like_c": 33}})], now=NOW)
-    windy = assess_activity("running", [with_hours(at(6), 2, {1: {"wind_kmh": 35}})], now=NOW)
+    hot = assess_activity("running", [with_hours(at(6), 1, {0: {"feels_like_c": 33}})], now=NOW)
+    windy = assess_activity("running", [with_hours(at(6), 1, {0: {"wind_kmh": 35}})], now=NOW)
     assert guideline_topics([hot, windy], []) == ["heat", "wind"]

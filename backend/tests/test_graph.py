@@ -641,6 +641,22 @@ async def test_assessment_topics_retrieve_guidance_for_the_answer(respx_mock) ->
     assert "guidelines" in response.debug.timings
 
 
+async def test_perfect_best_block_with_warm_hours_after_it_retrieves_no_guidance(aq_world) -> None:
+    """The live Delhi case: 'run tomorrow morning?' scored 100/100 at 06:30-07:30, but the later
+    morning hours are warm. Those hours are outside the best block, so no heat guidance."""
+    retriever = FakeRetriever(heat_docs())
+    agent, _, answer = make_agent(run_q(recommendation_type="suitability"), now=AQ_NOW, retriever=retriever)
+    response = await agent.ask("Can I go for a run in Delhi tomorrow morning?")
+
+    [a] = response.assessments
+    assert a.best_blocks[0].average_score == 100
+    warm_later = [h for h in a.hourly if h.time >= a.best_blocks[0].end
+                  and any(f.name == "feels_like_c" and f.reason for f in h.factors)]
+    assert warm_later  # the hours that used to raise the heat topic
+    assert retriever.calls == [] and response.sources == []
+    assert "GUIDANCE" not in answer.calls[0][-1].content
+
+
 async def test_audience_is_passed_through(respx_mock) -> None:
     mock_onecall(respx_mock)
     retriever = FakeRetriever(heat_docs())
