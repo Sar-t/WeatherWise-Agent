@@ -142,7 +142,12 @@ describe("asking", () => {
     expect(card).toHaveTextContent("Good");
     expect(card).toHaveTextContent("100 of 100");
     expect(card).toHaveTextContent(/20:30 – 21:30/);
-    expect(screen.getByText(/NAQI 130 · Moderately Polluted/)).toBeInTheDocument();
+    // The air chip says what it shows: the window's worst hour, then the best window's own reading.
+    const worst = screen.getByText("Worst in window:").parentElement!;
+    expect(worst).toHaveTextContent("Worst in window: NAQI 130, Moderately Polluted (17:30)");
+    expect(screen.getByText("In your best window:").parentElement).toHaveTextContent(
+      "In your best window: NAQI 99, Satisfactory",
+    );
 
     const source = screen.getByRole("link", { name: /NAQI Moderately Polluted \(101-200\)/ });
     expect(source).toHaveAttribute("href", REAL_MESSAGE.sources![0].url);

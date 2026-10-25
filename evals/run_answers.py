@@ -1,9 +1,10 @@
 """Answer evals: REAL answer LLM, recorded weather and geocoding (reproducible).
 
 Manual only (not collected by pytest). From the repo root, venv active:
-    python evals/run_answers.py [--pause 5] [--only id,id] [--model gemini-2.5-flash] [--refresh]
+    python evals/run_answers.py [--pause 5] [--only id,id] [--model gemini-2.5-flash] [--refresh] [--cache-only]
 Extraction is skipped: each case supplies its QueryUnderstanding, so a case costs at most one LLM
-call. Replies are cached in evals/.cache/ by model + prompt hash; --refresh ignores the cache.
+call. Replies are cached in evals/.cache/ by model + prompt hash; --refresh ignores the cache, and
+--cache-only fails a case instead of calling the LLM (re-check cached replies at no cost).
 """
 
 import argparse
@@ -160,8 +161,9 @@ def check_style(reply: str, comparing: bool) -> list[str]:
 class CachedAnswerLLM:
     """The real answer model behind a disk cache, pausing between real calls."""
 
-    def __init__(self, model: Any, model_name: str, pause: float, refresh: bool) -> None:
+    def __init__(self, model: Any, model_name: str, pause: float, refresh: bool, cache_only: bool = False) -> None:
         self.model, self.model_name, self.pause, self.refresh = model, model_name, pause, refresh
+        self.cache_only = cache_only
         self.last_prompt: list | None = None
         self.real_calls = self.cache_hits = 0
         self._last_real_call: float | None = None
@@ -173,6 +175,8 @@ class CachedAnswerLLM:
         if path.exists() and not self.refresh:
             self.cache_hits += 1
             return AIMessage(content=json.loads(path.read_text(encoding="utf-8"))["reply"])
+        if self.cache_only:
+            raise RuntimeError("no cached reply for this prompt (--cache-only)")
         if self._last_real_call is not None:
             await asyncio.sleep(max(0.0, self.pause - (time.monotonic() - self._last_real_call)))
         try:
@@ -229,6 +233,43 @@ def _display(unit: str, value: float) -> float:
 def check_times(reply: str, observations: str) -> list[str]:
     """Every clock time in the reply must appear in the observations (best/avoid blocks, hours)."""
     return [f"time {t} not in the observations" for t in sorted(times(reply) - times(observations))]
+
+
+_CLOCK = r"(?:\d{1,2}:\d{2}(?:\s*[ap]\.?m\.?)?|\d{1,2}\s*[ap]\.?m\.?)"
+# "06:30 and 07:30", "06:30-07:30", "6:30 am to 7:30 am", "06:30 se 07:30 tak".
+_RANGE = re.compile(rf"(?<![\d:])({_CLOCK})\s*(?:-|–|—|to|and|until|till|se)\s*({_CLOCK})(?![\d:])", re.I)
+_BEST_WORDS = re.compile(r"\b(best|ideal|optimal|sabse (?:accha|achha|badhiya))\b", re.I)
+_NOT_BEST_WORDS = re.compile(r"\b(avoid|worst|skip|not (?:a )?good|bachein|bachna)\b", re.I)
+
+
+def _clock(text: str) -> str:
+    [value] = times(text)
+    return value
+
+
+def check_best_time(reply: str, assessments: list) -> list[str]:
+    """Every time range the reply gives as the best time must be the assessment's best block exactly.
+
+    A range counts as "the best time" when it follows best-time wording ("best", "ideal") in the same
+    sentence, before any avoid wording. Appearing somewhere in the observations isn't enough: the
+    model must not widen or narrow the window (e.g. "06:30 and 08:30" for a 06:30-07:30 block).
+    """
+    expected = {(f"{a.best_blocks[0].start:%H:%M}", f"{a.best_blocks[0].end:%H:%M}") for a in assessments
+                if a.best_blocks}
+    if not expected:
+        return []
+    shown = " or ".join(f"{s}-{e}" for s, e in sorted(expected))
+    failures = []
+    for sentence in re.split(r"(?<=[.!?])\s+", reply):
+        best = _BEST_WORDS.search(sentence)
+        if not best:
+            continue
+        stop = _NOT_BEST_WORDS.search(sentence, best.end())
+        for m in _RANGE.finditer(sentence, best.end(), stop.start() if stop else len(sentence)):
+            stated = (_clock(m.group(1)), _clock(m.group(2)))
+            if stated not in expected:
+                failures.append(f"best time {stated[0]}-{stated[1]} doesn't match the assessment's best window {shown}")
+    return failures
 
 
 # SYNTHETIC per-case overrides (a case's `synthetic:`), clearly separate from the recordings:
@@ -341,6 +382,7 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
         failures += [f"{tag}ungrounded reading {f}" for f in grounding.failures]
         warnings += [f"{tag}derived number {w}" for w in grounding.warnings]
         failures += [f"{tag}{f}" for f in check_times(response.text, observations)]
+        failures += [f"{tag}{f}" for f in check_best_time(response.text, response.assessments)]
         failures += [f"{tag}{f}" for f in check_unsupported(response.text, observations)]
         if "guidance" in expect:
             failures += [f"{tag}{f}" for f in check_guidance(response, expect["guidance"])]
@@ -353,12 +395,12 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
     return failures, warnings, replies
 
 
-async def main(pause: float, only: set[str], model_name: str | None, refresh: bool) -> None:
+async def main(pause: float, only: set[str], model_name: str | None, refresh: bool, cache_only: bool) -> None:
     settings = get_settings()
     if model_name:
         settings = settings.model_copy(update={"answer_model": model_name})
     name = settings.answer_model or settings.llm_model
-    answer_llm = CachedAnswerLLM(get_llm("answer", settings=settings), name, pause, refresh)
+    answer_llm = CachedAnswerLLM(get_llm("answer", settings=settings), name, pause, refresh, cache_only)
     cases = [c for c in yaml.safe_load(CASES.read_text(encoding="utf-8")) if not only or c["id"] in only]
     try:  # the real local retriever (build the index first: python -m ingestion.build_index)
         warm = f"{guidelines.warm_up():.1f}s"
@@ -398,5 +440,6 @@ if __name__ == "__main__":
     parser.add_argument("--only", default="", help="comma-separated case ids to run")
     parser.add_argument("--model", default=None, help="answer model to use (default: ANSWER_MODEL or LLM_MODEL)")
     parser.add_argument("--refresh", action="store_true", help="ignore cached replies and call the LLM again")
+    parser.add_argument("--cache-only", action="store_true", help="never call the LLM; a cache miss fails the case")
     args = parser.parse_args()
-    asyncio.run(main(args.pause, {x for x in args.only.split(",") if x}, args.model, args.refresh))
+    asyncio.run(main(args.pause, {x for x in args.only.split(",") if x}, args.model, args.refresh, args.cache_only))

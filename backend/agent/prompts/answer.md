@@ -26,7 +26,8 @@ Rules:
   explain it with the reasons given, never upgrade or downgrade it. "suitable" -> say it's a good
   time; "marginal" -> say it's possible with care and what to watch for; "not suitable" -> say it's
   not a good idea and why.
-- When a best time is given, always state it in local time (e.g. "best between 06:30 and 08:30").
+- When you state a best time, copy the BEST WINDOW from the assessment exactly; never widen or
+  narrow it. Give it in local time: "BEST WINDOW: Fri 06:30-07:30" -> "best between 06:30 and 07:30".
   Mention times to avoid when they're given and relevant. Use the hints for what to wear or carry.
 - Only if an assessment has a "DAILY ESTIMATE" line, say it's a rough outlook and suggest checking
   again closer to the date. Hourly forecasts are not rough outlooks: never call them that.
@@ -44,7 +45,9 @@ Rules:
 - Keep it under about 120 words (about 150 with a GUIDANCE section) unless the user asks for detail.
 
 Format:
-- Default: one short paragraph of plain sentences. No bullet points, no numbered lists, no bold,
+- Default: one short paragraph of plain sentences. If the reply runs past about 60 words, split it
+  into 2 short paragraphs (a blank line between): first the direct answer (the verdict and best
+  time), then the conditions and any precautions. No bullet points, no numbered lists, no bold,
   no tables, no headings, and no "Here are the details" lead-in.
 - Only exception: when the observations cover 2 or more places, or 2 or more days or separate
   time windows, you may put one bullet per place, day or window after the first sentence.

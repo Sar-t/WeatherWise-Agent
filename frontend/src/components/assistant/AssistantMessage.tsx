@@ -4,7 +4,7 @@
 import type { AirQualityOut, AssessmentOut, ChatResponse, SourceOut } from "@/lib/api";
 import { naqiStyle, owmStyle } from "@/lib/aqi";
 import { timeRange } from "@/lib/details";
-import { formatDay, keepUnits } from "@/lib/format";
+import { formatDay, formatTime, keepUnits } from "@/lib/format";
 import { VERDICT_STYLES } from "../BestTimeCard";
 
 const BULLET = /^\s*[-•*]\s+/;
@@ -94,20 +94,57 @@ export function AssessmentCard({ a }: { a: AssessmentOut }) {
   );
 }
 
-export function AirChip({ air }: { air: AirQualityOut }) {
-  const style = air.scale === "naqi" ? naqiStyle(air.category) : owmStyle(air.value);
-  const value = air.value == null ? "–" : air.scale === "naqi" ? `NAQI ${air.value}` : `Level ${air.value}/5`;
+type AirReading = { value?: number | null; category?: string | null };
+
+function AirValue({ scale, reading }: { scale: AirQualityOut["scale"]; reading: AirReading }) {
+  const style = scale === "naqi" ? naqiStyle(reading.category) : owmStyle(reading.value);
+  const value = reading.value == null ? "–" : scale === "naqi" ? `NAQI ${reading.value}` : `${reading.value}/5`;
+  const label = style?.label ?? reading.category;
   return (
-    <p className="inline-flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-muted">Air in {air.location.name}</span>
-      <span
-        className="tabular rounded-full px-2.5 py-0.5 font-semibold"
-        style={style ? { background: style.background, color: style.text } : undefined}
-      >
-        {value}
-        {style ? ` · ${style.label}` : air.category ? ` · ${air.category}` : ""}
-      </span>
-    </p>
+    <span
+      className="tabular rounded-full px-2.5 py-0.5 font-semibold"
+      style={style ? { background: style.background, color: style.text } : undefined}
+    >
+      {value}
+      {label ? `, ${label}` : ""}
+    </span>
+  );
+}
+
+/** The worst air in the asked-about window, in the place's best window too. */
+export function bestWindowAir(air: AirQualityOut, assessments: AssessmentOut[]): AirReading | null {
+  const same = (a: AssessmentOut) => a.location.lat === air.location.lat && a.location.lon === air.location.lon;
+  const block = assessments.find(same)?.best_blocks?.[0];
+  if (!block) return null;
+  const [start, end] = [new Date(block.start).getTime(), new Date(block.end).getTime()];
+  const inside = (air.hourly ?? []).filter((h) => {
+    const t = new Date(h.time).getTime();
+    return t >= start && t < end && h.value != null;
+  });
+  if (!inside.length) return null;
+  return inside.reduce((a, b) => ((b.value ?? 0) > (a.value ?? 0) ? b : a));
+}
+
+export function AirChip({ air, assessments = [], showPlace = false }: { air: AirQualityOut; assessments?: AssessmentOut[]; showPlace?: boolean }) {
+  const best = bestWindowAir(air, assessments);
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      {showPlace && <p className="font-medium text-ink">Air in {air.location.name}</p>}
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-muted">Worst in window:</span>{" "}
+        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+          <AirValue scale={air.scale} reading={air} />
+          {air.worst_at && " "}
+          {air.worst_at && <span className="tabular text-muted">({formatTime(air.worst_at, air.location.timezone)})</span>}
+        </span>
+      </p>
+      {best && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-muted">In your best window:</span>{" "}
+          <AirValue scale={air.scale} reading={best} />
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -148,7 +185,7 @@ export function ReplyExtras({ response }: { response: ChatResponse }) {
         <AssessmentCard key={`${a.location.name}-${a.activity}-${i}`} a={a} />
       ))}
       {air.map((a, i) => (
-        <AirChip key={`${a.location.name}-${i}`} air={a} />
+        <AirChip key={`${a.location.name}-${i}`} air={a} assessments={assessments} showPlace={air.length > 1} />
       ))}
       {sources.length > 0 && <Sources sources={sources} />}
     </div>

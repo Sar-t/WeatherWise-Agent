@@ -19,6 +19,7 @@ from backend.services.scoring.models import ActivityAssessment
 log = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "answer.md"
+PARAGRAPH_WORDS = 60  # a longer reply splits in two: the direct answer, then conditions and precautions
 _BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
 
 
@@ -114,19 +115,22 @@ def flatten_bullets(text: str) -> str:
 
 def template_answer(cards: list[WeatherResult], air_cards: list[AirQualityResult] = (),
                     assessments: list[ActivityAssessment] = (), guidance_note: str | None = None) -> str:
-    """A plain reply built in code from the same data the LLM would have seen: alerts, the engine's
-    verdicts and best times, then the weather and air quality."""
+    """A plain reply built in code from the same data the LLM would have seen: alerts and the engine's
+    verdicts and best times first, then the weather, air quality and guidance. Like the LLM's reply,
+    it splits into those 2 paragraphs when it runs past about 60 words."""
     alerts = [a for card in cards for a in card.alerts]
-    lines = [f"Weather alert: {a.event} ({a.sender}), {a.start:%a %H:%M} to {a.end:%a %H:%M}." for a in
-             {(a.event, a.start): a for a in alerts}.values()]
-    lines += [_assessment_line(a) for a in assessments]
-    for card in cards:
-        lines.append(_card_line(card))
-    for card in air_cards:
-        lines.append(_air_line(card))
+    lead = [f"Weather alert: {a.event} ({a.sender}), {a.start:%a %H:%M} to {a.end:%a %H:%M}." for a in
+            {(a.event, a.start): a for a in alerts}.values()]
+    lead += [_assessment_line(a) for a in assessments]
+    rest = [_card_line(card) for card in cards] + [_air_line(card) for card in air_cards]
     if guidance_note:
-        lines.append(guidance_note)
-    return "\n".join(lines)
+        rest.append(guidance_note)
+    if not lead:  # plain weather: the first card is the direct answer
+        lead, rest = rest[:1], rest[1:]
+    paragraphs = [" ".join(p) for p in (lead, rest) if p]
+    if sum(len(p.split()) for p in paragraphs) <= PARAGRAPH_WORDS:
+        return " ".join(paragraphs)
+    return "\n\n".join(paragraphs)
 
 
 def _assessment_line(a: ActivityAssessment) -> str:

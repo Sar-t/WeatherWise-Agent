@@ -111,21 +111,34 @@ def test_template_leads_with_the_engines_verdict_and_best_time() -> None:
     a = an_assessment()
     daily = a.model_copy(update={"is_daily_estimate": True, "best_blocks": []})
     text = template_answer([], [], [a, daily])
-    assert text.splitlines() == [
-        f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: suitable ({a.score}/100); best time Fri 06:00-07:00.",
+    assert text == (  # under 60 words: one paragraph
+        f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: suitable ({a.score}/100); best time Fri 06:00-07:00. "
         f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: suitable ({a.score}/100). "
-        "This is a rough outlook; check again closer to the date.",
-    ]
+        "This is a rough outlook; check again closer to the date."
+    )
+
+
+def test_template_over_60_words_splits_into_answer_then_conditions() -> None:
+    from backend.tests.test_observations import air_result, an_assessment
+
+    a = an_assessment()
+    cards = [card(hourly=[point(6, 22.4, 0.1), point(7, 26.6, 0.35)]), card("current", hourly=[point(5, 21)])]
+    text = template_answer(cards, [air_result()], [a], guidance_note="Guidance (CPCB): limit long outdoor exertion.")
+    assert len(text.split()) > 60
+    lead, conditions = text.split("\n\n")
+    assert lead == f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: suitable ({a.score}/100); best time Fri 06:00-07:00."
+    assert conditions.startswith("Jaipur, Mon 19 Oct, 06:00-12:00 IST: expected 22-27°C")
+    assert conditions.endswith("Guidance (CPCB): limit long outdoor exertion.")
 
 
 def test_template_air_quality_lines() -> None:
     from backend.tests.test_observations import air_result
 
     text = template_answer([], [air_result(), air_result("fr")])
-    assert text.splitlines() == [
-        "Jaipur air quality, Fri 23 Oct, 06:00-09:00 IST: NAQI up to 230 (Poor, mainly PM2.5).",
-        "Paris, France air quality, Fri 23 Oct, 06:00-09:00 IST: up to 3/5 (Moderate) on OpenWeather's scale.",
-    ]
+    assert text == (
+        "Jaipur air quality, Fri 23 Oct, 06:00-09:00 IST: NAQI up to 230 (Poor, mainly PM2.5). "
+        "Paris, France air quality, Fri 23 Oct, 06:00-09:00 IST: up to 3/5 (Moderate) on OpenWeather's scale."
+    )
 
 
 @pytest.mark.parametrize("text, expected", [
@@ -159,9 +172,8 @@ async def test_failure_or_empty_reply_uses_template(failure) -> None:
 def test_template_alerts_first_then_cards() -> None:
     alert = WeatherAlert(sender="IMD", event="Heavy rain", start=at(9), end=at(18), description="...")
     text = template_answer([card(hourly=[point(6, 22)], alerts=[alert]), card("current", hourly=[point(5, 21)])])
-    lines = text.splitlines()
-    assert lines[0] == "Weather alert: Heavy rain (IMD), Mon 09:00 to Mon 18:00."
-    assert lines[2] == "Jaipur now: 21°C (feels 22°C), wind 15 km/h."
+    assert text.startswith("Weather alert: Heavy rain (IMD), Mon 09:00 to Mon 18:00. Jaipur, Mon 19 Oct")
+    assert text.endswith("Jaipur now: 21°C (feels 22°C), wind 15 km/h.")
 
 
 def test_template_past_and_daily() -> None:

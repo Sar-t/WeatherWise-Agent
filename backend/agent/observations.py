@@ -134,7 +134,9 @@ def summarize_assessment(a: ActivityAssessment, recommendation_type: str | None 
     reasons = a.best_blocks[0].reasons if a.best_blocks else block_reasons(a.hourly, 3)
     sections = {
         "reasons": [f"Main reasons: {'; '.join(reasons)}" if reasons else "Main reasons: no factor lost points"],
-        "best": ([f"- Best time: {block(b)}" for b in a.best_blocks] or ["Best time: none in the requested time"]),
+        # The first block is the one to state; the answer prompt says to copy it exactly.
+        "best": ([f"- {'BEST WINDOW' if i == 0 else 'Also good'}: {block(b)}" for i, b in enumerate(a.best_blocks)]
+                 or ["BEST WINDOW: none in the requested time"]),
         "avoid": [f"- Avoid: {block(b)}" for b in a.avoid_blocks] or ["Avoid: nothing in the requested time"],
         "hints": [f"Hints: {' '.join(a.hints)}"] if a.hints else [],
     }

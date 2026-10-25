@@ -482,7 +482,7 @@ async def test_best_time_lists_best_blocks_first_in_local_time(respx_mock) -> No
     [a] = response.assessments
     lines = assessment_text(prompt_of(answer)).splitlines()
     best = a.best_blocks[0]
-    assert lines[2].startswith(f"- Best time: {best.start:%a %H:%M}-{best.end:%H:%M}, score {best.average_score}")
+    assert lines[2].startswith(f"- BEST WINDOW: {best.start:%a %H:%M}-{best.end:%H:%M}, score {best.average_score}")
     assert best.end - best.start == timedelta(hours=2)  # cycling: 2 h blocks
     assert best.start.tzinfo.key == "Asia/Kolkata"
 
@@ -525,7 +525,7 @@ async def test_travel_uses_the_travel_profile_and_trip_duration(respx_mock) -> N
     assert a.profile == "travel"
     assert all(b.end - b.start == timedelta(hours=3) for b in a.best_blocks)
     lines = assessment_text(prompt_of(answer)).splitlines()
-    assert lines[2].startswith("- Best time:")  # travel_timing: best, then avoid
+    assert lines[2].startswith("- BEST WINDOW:")  # travel_timing: best, then avoid
     assert "AIR QUALITY UNAVAILABLE" in prompt_of(answer)  # travel asks for air quality; no Mumbai recording
 
 
@@ -591,7 +591,7 @@ async def test_template_fallback_leads_with_verdict_and_best_time(aq_world) -> N
 
     [a] = response.assessments
     best = a.best_blocks[0]
-    assert response.text.splitlines()[0] == (
+    assert response.text.startswith(
         f"Running in New Delhi, Fri 23 Oct, 06:00-12:00 IST: {a.verdict.replace('_', ' ')} ({a.score}/100); "
         f"best time {best.start:%a %H:%M}-{best.end:%H:%M}.")
 
@@ -698,8 +698,7 @@ async def test_template_fallback_includes_one_guidance_line(respx_mock) -> None:
     agent, _, _ = make_agent(outdoors_mumbai(), now=CITIES_NOW, answer=failing, retriever=FakeRetriever(heat_docs()))
     response = await agent.ask("Can I be outdoors in Mumbai tomorrow?")
     assert response.debug.answer_fallback
-    [line] = [x for x in response.text.splitlines() if x.startswith("Guidance (")]
-    assert line.startswith("Guidance (WHO")
+    assert response.text.count("Guidance (") == 1 and "Guidance (WHO" in response.text
     assert response.sources  # the fallback still cites what it used
 
 

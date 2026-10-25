@@ -242,8 +242,8 @@ def section_starts(text: str) -> list[str]:
 
 
 @pytest.mark.parametrize("kind, first", [
-    ("suitability", "Main reasons"), ("best_time", "- Best time"), ("avoid", "- Avoid"),
-    ("travel_timing", "- Best time"),
+    ("suitability", "Main reasons"), ("best_time", "- BEST WINDOW"), ("avoid", "- Avoid"),
+    ("travel_timing", "- BEST WINDOW"),
 ])
 def test_assessment_sections_follow_the_recommendation_type(kind: str, first: str) -> None:
     from backend.agent.observations import summarize_assessment
@@ -259,7 +259,7 @@ def test_assessment_header_verdict_and_blocks() -> None:
     lines = summarize_assessment(a, "best_time").splitlines()
     assert lines[0] == "New Delhi | ACTIVITY ASSESSMENT (running) | Fri 23 Oct, 06:00-12:00 IST"
     assert lines[1] == f"VERDICT (from the scoring engine; explain it, don't change it): suitable, score {a.score}/100"
-    assert lines[2] == "- Best time: Fri 06:00-07:00, score 100 (suitable)"
+    assert lines[2] == "- BEST WINDOW: Fri 06:00-07:00, score 100 (suitable)"
     assert "- Avoid: Fri 10:00-11:00, score 0 (not suitable): thunderstorm" in lines
 
 
@@ -270,7 +270,7 @@ def test_packing_leads_with_hints_and_clothing_defaults_to_it() -> None:
     a = a.model_copy(update={"hints": ["Carry an umbrella or a rain jacket."]})
     assert section_starts(summarize_assessment(a, "packing"))[0] == "Hints"
     assert section_starts(summarize_assessment(a, None, intent="clothing_recommendation"))[0] == "Hints"
-    assert section_starts(summarize_assessment(a, None, intent="travel_recommendation"))[0] == "- Best time"
+    assert section_starts(summarize_assessment(a, None, intent="travel_recommendation"))[0] == "- BEST WINDOW"
     assert section_starts(summarize_assessment(a, None))[0] == "Main reasons"
 
 
@@ -285,7 +285,7 @@ def test_daily_estimate_is_flagged_and_parts_are_named() -> None:
     a = assess_activity("picnic", [daily_result(date(2026, 10, 26), window)], now=SCORING_NOW)
     lines = summarize_assessment(a, "best_time").splitlines()
     assert lines[1] == "DAILY ESTIMATE: rough outlook from daily forecasts, lower confidence"
-    assert lines[3].startswith("- Best time: Mon 06:00-12:00 (morning), score")
+    assert lines[3].startswith("- BEST WINDOW: Mon 06:00-12:00 (morning), score")
     assert any(line.startswith("Data note: Daily estimate") for line in lines)
 
 
@@ -296,7 +296,7 @@ def test_assessment_cap_drops_data_notes_first() -> None:
     full = summarize_assessment(a, "suitability", max_chars=100_000)
     capped = summarize_assessment(a, "suitability", max_chars=600)
     assert len(capped) <= 600 < len(full)
-    assert "VERDICT" in capped and "Main reasons" in capped and "- Best time" in capped
+    assert "VERDICT" in capped and "Main reasons" in capped and "- BEST WINDOW" in capped
 
 
 def test_air_unavailable_note() -> None:
