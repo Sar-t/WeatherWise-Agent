@@ -8,7 +8,7 @@ import json
 import logging
 import sqlite3
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from pathlib import Path
 
 import pytest
@@ -431,6 +431,34 @@ def test_dashboard_without_a_fitting_block_today_shows_tomorrow(make_client, rec
     monkeypatch.setattr(dashboard_module, "assess_activity", no_block_today)
     client = make_client(clock=lambda: AQ_NOW)
     assert dashboard(client, place="Delhi").json()["outdoor_today"]["day"] == "tomorrow"
+
+
+def _assert_waking_hours(outdoor: dict, now: datetime) -> None:
+    """The dashboard's window sits within 06:00-22:00 local on one day, today or tomorrow."""
+    block = outdoor["best_block"]
+    start, end = datetime.fromisoformat(block["start"]), datetime.fromisoformat(block["end"])
+    day = now.date() if outdoor["day"] == "today" else (now + timedelta(days=1)).date()
+    assert start.date() == day and end.date() == day, (start, end)  # never crosses midnight
+    assert start.time() >= time(6) and end.time() <= time(22), (start, end)
+    if outdoor["day"] == "today":
+        assert start >= now.replace(minute=0, second=0, microsecond=0)
+
+
+def test_dashboard_delhi_afternoon_gets_a_daytime_window(make_client, recorded) -> None:
+    # Seen live: at 13:06 the coolest block was 22:30-00:30. It must be a waking-hours block or tomorrow.
+    now = AQ_NOW.replace(hour=13, minute=6)
+    client = make_client(clock=lambda: now)
+    _assert_waking_hours(dashboard(client, place="Delhi").json()["outdoor_today"], now)
+
+
+@pytest.mark.parametrize("hour", [12, 15, 17, 19, 20, 21, 23])  # the recording starts at 12:00
+def test_dashboard_window_stays_in_waking_hours(make_client, recorded, hour) -> None:
+    now = AQ_NOW.replace(hour=hour, minute=6)
+    client = make_client(clock=lambda: now)
+    outdoor = dashboard(client, place="Delhi").json()["outdoor_today"]
+    _assert_waking_hours(outdoor, now)
+    if hour >= 20:  # fewer than 2 hours left before 22:00
+        assert outdoor["day"] == "tomorrow"
 
 
 def test_dashboard_by_coordinates_reverse_geocodes_rounded(make_client, recorded) -> None:

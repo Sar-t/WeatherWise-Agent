@@ -15,8 +15,9 @@ from backend.services.scoring.blocks import block_reasons
 log = logging.getLogger(__name__)
 
 HOURS_AHEAD = 24
-MIN_HOURS_LEFT_TODAY = 2  # fewer left before midnight: show tomorrow's outlook instead
-TOMORROW_WINDOW = (time(6), time(22))
+WAKING_HOURS = (time(6), time(22))  # the dashboard's outlook only suggests times inside these
+MIN_HOURS_LEFT_TODAY = 2  # fewer waking hours left today: show tomorrow's outlook instead
+SLOT = timedelta(hours=1)
 
 
 class AmbiguousPlace(Exception):
@@ -79,17 +80,19 @@ async def _air(location: Location, now: datetime) -> schemas.DashboardAir | None
 
 
 async def outdoor_outlook(location: Location, now: datetime) -> schemas.OutdoorOut | None:
-    """General outdoor outlook for the rest of today; tomorrow 06:00-22:00 if fewer than 2 hours are
-    left or no block fits, so the card is never empty."""
+    """General outdoor outlook within waking hours (06:00-22:00 local) for the rest of today; tomorrow's
+    waking hours if fewer than 2 are left or no block fits, so the card is never empty. A block never
+    crosses midnight. Dashboard only: chat scores whatever window was asked about."""
     tz = ZoneInfo(location.timezone)
-    midnight = datetime.combine(now.date() + timedelta(days=1), time(), tzinfo=tz)
-    if midnight - now >= timedelta(hours=MIN_HOURS_LEFT_TODAY):
-        today = await _assess(location, TimeWindow(start=now, end=midnight), now)
+    start, end = (datetime.combine(now.date(), t, tzinfo=tz) for t in WAKING_HOURS)
+    start = max(start, now)
+    if end - start >= timedelta(hours=MIN_HOURS_LEFT_TODAY):
+        today = await _assess(location, TimeWindow(start=start, end=end), now)
         if today is not None and today.best_blocks:
             return _outdoor(today, "today")
     tomorrow = now.date() + timedelta(days=1)
-    window = TimeWindow(start=datetime.combine(tomorrow, TOMORROW_WINDOW[0], tzinfo=tz),
-                        end=datetime.combine(tomorrow, TOMORROW_WINDOW[1], tzinfo=tz))
+    window = TimeWindow(start=datetime.combine(tomorrow, WAKING_HOURS[0], tzinfo=tz),
+                        end=datetime.combine(tomorrow, WAKING_HOURS[1], tzinfo=tz))
     assessment = await _assess(location, window, now)
     return _outdoor(assessment, "tomorrow") if assessment is not None else None
 
@@ -99,6 +102,10 @@ async def _assess(location: Location, window: TimeWindow, now: datetime):
         weather_result = await weather.get_weather(location, window, now=now)
     except WeatherWiseError:
         return None
+    # A block runs to its last hour's end, so keep only hours that end inside the window: with
+    # forecasts on the half hour (India), a 21:30 hour would otherwise stretch a block to 22:30.
+    inside = [p for p in weather_result.hourly if p.time + SLOT <= window.end]
+    weather_result = weather_result.model_copy(update={"hourly": inside})
     try:
         air = [await air_quality.get_air_quality(location, window, now=now)]
     except WeatherWiseError:
