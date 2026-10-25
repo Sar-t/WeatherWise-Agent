@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { CurrentOut } from "@/lib/api";
+import type { CurrentOut, DayOut } from "@/lib/api";
 import {
   dayLength,
   humidityLabel,
@@ -11,8 +11,8 @@ import {
 import { formatTime, keepUnits } from "@/lib/format";
 import { Card, CardTitle } from "./Card";
 
-/** Current conditions in detail: wind, humidity, UV, visibility, pressure and feels like. */
-export function DetailTiles({ current }: { current: CurrentOut }) {
+/** Current conditions in detail: wind, humidity, UV, visibility, pressure, and today's rain. */
+export function DetailTiles({ current, today }: { current: CurrentOut; today?: DayOut }) {
   const uv = current.uv_index;
   const vis = current.visibility_km;
   return (
@@ -41,9 +41,9 @@ export function DetailTiles({ current }: { current: CurrentOut }) {
           {current.pressure_hpa != null ? Math.round(current.pressure_hpa) : "–"}
           {current.pressure_hpa != null && <Unit>hPa</Unit>}
         </Tile>
-        <Tile label="Feels like" note={feelsNote(current)}>
-          {Math.round(current.feels_like_c)}
-          <Unit>°C</Unit>
+        <Tile label="Rain today" note={today ? rainNote(today) : "Not available"}>
+          {today?.rain_prob_pct != null ? Math.round(today.rain_prob_pct) : "–"}
+          {today?.rain_prob_pct != null && <Unit>%</Unit>}
         </Tile>
       </dl>
     </Card>
@@ -57,11 +57,10 @@ function windNote(c: CurrentOut): string {
   return parts.join(", ") || "Calm";
 }
 
-function feelsNote(c: CurrentOut): string {
-  const diff = Math.round(c.feels_like_c - c.temp_c);
-  if (diff >= 2) return "Warmer than it is";
-  if (diff <= -2) return "Cooler than it is";
-  return "About the same";
+function rainNote(day: DayOut): string {
+  const mm = day.rain_mm ?? 0;
+  if (mm < 0.1) return "None expected";
+  return keepUnits(`${mm < 10 ? mm.toFixed(1) : Math.round(mm)} mm expected`);
 }
 
 function Tile({ label, note, children }: { label: string; note: string; children: ReactNode }) {
@@ -126,7 +125,7 @@ function SunArc({ now, sunrise, sunset, timeZone }: { now: string; sunrise: stri
         {rise}
       </figcaption>
       <div>
-        <svg viewBox="0 0 200 100" className="mx-auto block w-full max-w-[9rem]" role="img" aria-label={label}>
+        <svg viewBox="0 0 200 100" className="mx-auto block w-full max-w-[9rem] lg:max-w-[15rem]" role="img" aria-label={label}>
           <line x1="8" y1={BASE} x2="192" y2={BASE} stroke="var(--color-line)" strokeWidth="1" />
           <path d={track} fill="none" stroke="var(--color-line)" strokeWidth="1.5" strokeDasharray="3 4" />
           {sun && angle != null && (
@@ -142,11 +141,12 @@ function SunArc({ now, sunrise, sunset, timeZone }: { now: string; sunrise: stri
             </>
           )}
         </svg>
+        <p className="mt-1 hidden text-center text-xs text-muted lg:block">{dayLength(sunrise, sunset)} of daylight</p>
       </div>
       <p className="tabular text-right">
         <span className="block text-xs text-muted">Sunset</span>
         {set}
-        <span className="block text-xs text-muted">{dayLength(sunrise, sunset)} of daylight</span>
+        <span className="block text-xs text-muted lg:hidden">{dayLength(sunrise, sunset)} of daylight</span>
       </p>
     </figure>
   );

@@ -188,7 +188,7 @@ function DashboardView({ data, stale }: { data: DashboardData; stale: boolean })
         <div className="contents lg:flex lg:flex-col lg:gap-6">
           <div className="order-2 lg:order-none"><BestTimeCard outdoor={data.outdoor_today} timeZone={tz} /></div>
           <div className="order-4 lg:order-none"><AirQualityCard air={data.air_quality} timeZone={tz} /></div>
-          <div className={`order-6 ${FILL}`}><DetailTiles current={data.current} /></div>
+          <div className={`order-6 ${FILL}`}><DetailTiles current={data.current} today={data.daily[0]} /></div>
         </div>
       </div>
       <SunCard current={data.current} now={data.local_time} timeZone={tz} />

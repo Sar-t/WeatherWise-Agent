@@ -63,6 +63,9 @@ describe("first and returning visits", () => {
     for (const title of ["Best time to step out", "Next 24 hours", "Air quality", "7-day forecast", "Right now"]) {
       expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
     }
+    // Today's rain comes from the daily forecast, in the "Right now" tiles.
+    const rainToday = Math.round(delhi.daily[0].rain_prob_pct ?? 0);
+    expect(screen.getByText("Rain today").parentElement).toHaveTextContent(`Rain today${rainToday}%`);
     // Every chart has a text alternative.
     expect(screen.getByText(/^Next 24 hours: high/)).toBeInTheDocument();
     expect(screen.getByText(/^Next 7 days:/)).toBeInTheDocument();
