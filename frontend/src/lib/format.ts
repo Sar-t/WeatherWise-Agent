@@ -60,3 +60,10 @@ export function secondaryPlaceLine(name: string, formatted: string): string {
   const repeats = (p: string) => named.some((n) => p.toLowerCase().includes(n) || n.includes(p.toLowerCase()));
   return parts.filter((p) => !repeats(p) && !isCode(p)).join(", ");
 }
+
+const UNIT = /(\d) (km\/h|km|°C|%|mm|hPa|µg\/m³|h|min)(?![\w/])/g;
+
+/** Keep a number and its unit on one line: "gusts 48 km/h" never breaks before "km/h". */
+export function keepUnits(text: string): string {
+  return text.replace(UNIT, "$1\xa0$2");
+}

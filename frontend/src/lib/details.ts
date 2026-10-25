@@ -42,7 +42,7 @@ export function sunProgress(now: string | Date, sunrise: string, sunset: string)
 
 export function dayLength(sunrise: string, sunset: string): string {
   const minutes = Math.round((new Date(sunset).getTime() - new Date(sunrise).getTime()) / 60_000);
-  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  return `${Math.floor(minutes / 60)}\xa0h ${minutes % 60}\xa0min`;
 }
 
 export const VERDICT_LABELS: Record<OutdoorOut["verdict"], string> = {

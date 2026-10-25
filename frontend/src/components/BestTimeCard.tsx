@@ -1,5 +1,6 @@
 import type { OutdoorOut } from "@/lib/api";
 import { VERDICT_LABELS, timeRange } from "@/lib/details";
+import { keepUnits } from "@/lib/format";
 import { Card, CardTitle } from "./Card";
 
 const VERDICT_STYLES: Record<OutdoorOut["verdict"], string> = {
@@ -39,7 +40,11 @@ export function BestTimeCard({ outdoor, timeZone }: { outdoor: OutdoorOut | null
           <p className="mt-4 text-xs text-muted">
             {outdoor.verdict === "not_suitable" ? "Least risky window" : "Best window"}
           </p>
-          <p className="tabular font-display text-[2.1rem] leading-tight font-light tracking-tight">
+          <p
+            className={`tabular font-display leading-tight font-light tracking-tight ${
+              outdoor.verdict === "not_suitable" ? "text-[1.6rem] text-muted" : "text-[2.1rem] text-ink"
+            }`}
+          >
             {timeRange(block.start, block.end, timeZone)}
           </p>
         </>
@@ -56,7 +61,7 @@ export function BestTimeCard({ outdoor, timeZone }: { outdoor: OutdoorOut | null
           {reasons.map((r) => (
             <li key={r} className="flex gap-2">
               <span aria-hidden className="mt-[0.55rem] h-1 w-1 shrink-0 rounded-full bg-muted" />
-              {r[0].toUpperCase() + r.slice(1)}
+              {keepUnits(r[0].toUpperCase() + r.slice(1))}
             </li>
           ))}
         </ul>

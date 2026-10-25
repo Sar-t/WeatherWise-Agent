@@ -8,11 +8,11 @@ import {
   visibilityLabel,
   windArrowRotation,
 } from "@/lib/details";
-import { formatTime } from "@/lib/format";
+import { formatTime, keepUnits } from "@/lib/format";
 import { Card, CardTitle } from "./Card";
 
-/** Current conditions in detail: wind, humidity, UV, visibility, pressure, and the sun's day. */
-export function DetailTiles({ current, now, timeZone }: { current: CurrentOut; now: string; timeZone: string }) {
+/** Current conditions in detail: wind, humidity, UV, visibility, pressure and feels like. */
+export function DetailTiles({ current }: { current: CurrentOut }) {
   const uv = current.uv_index;
   const vis = current.visibility_km;
   return (
@@ -45,14 +45,6 @@ export function DetailTiles({ current, now, timeZone }: { current: CurrentOut; n
           {Math.round(current.feels_like_c)}
           <Unit>°C</Unit>
         </Tile>
-        {current.sunrise && current.sunset && (
-          <div className="col-span-2 rounded-2xl bg-canvas px-4 py-3.5">
-            <dt className="text-xs text-muted">Sunrise and sunset</dt>
-            <dd className="mt-1">
-              <SunArc now={now} sunrise={current.sunrise} sunset={current.sunset} timeZone={timeZone} />
-            </dd>
-          </div>
-        )}
       </dl>
     </Card>
   );
@@ -61,7 +53,7 @@ export function DetailTiles({ current, now, timeZone }: { current: CurrentOut; n
 function windNote(c: CurrentOut): string {
   const parts = [];
   if (c.wind_dir) parts.push(`From ${c.wind_dir}`);
-  if (c.gust_kmh != null && c.gust_kmh > c.wind_kmh) parts.push(`gusts ${Math.round(c.gust_kmh)} km/h`);
+  if (c.gust_kmh != null && c.gust_kmh > c.wind_kmh) parts.push(keepUnits(`gusts ${Math.round(c.gust_kmh)} km/h`));
   return parts.join(", ") || "Calm";
 }
 
@@ -76,7 +68,7 @@ function Tile({ label, note, children }: { label: string; note: string; children
   return (
     <div className="rounded-2xl bg-canvas px-4 py-3.5">
       <dt className="text-xs text-muted">{label}</dt>
-      <dd className="tabular mt-1 text-[1.35rem] leading-tight font-medium text-ink">{children}</dd>
+      <dd className="tabular mt-1 whitespace-nowrap text-[1.35rem] leading-tight font-medium text-ink">{children}</dd>
       <dd className="mt-0.5 text-xs text-ink-soft">{note}</dd>
     </div>
   );
@@ -101,8 +93,21 @@ const R = 80;
 const CX = 100;
 const BASE = 92;
 
+/** Today's sunrise and sunset, with the sun's path and where it is now. */
+export function SunCard({ current, now, timeZone }: { current: CurrentOut; now: string; timeZone: string }) {
+  if (!current.sunrise || !current.sunset) return null; // polar day or night, or no data
+  return (
+    <Card>
+      <CardTitle meta={`${dayLength(current.sunrise, current.sunset)} of daylight`}>Sunrise and sunset</CardTitle>
+      <div className="mt-3">
+        <SunArc now={now} sunrise={current.sunrise} sunset={current.sunset} timeZone={timeZone} />
+      </div>
+    </Card>
+  );
+}
+
 /** The sun's path over the day, with where it is now. */
-export function SunArc({ now, sunrise, sunset, timeZone }: { now: string; sunrise: string; sunset: string; timeZone: string }) {
+function SunArc({ now, sunrise, sunset, timeZone }: { now: string; sunrise: string; sunset: string; timeZone: string }) {
   const p = sunProgress(now, sunrise, sunset);
   const track = `M ${CX - R} ${BASE} A ${R} ${R} 0 0 1 ${CX + R} ${BASE}`;
   const angle = p != null ? Math.PI * (1 - p) : null;
@@ -115,34 +120,33 @@ export function SunArc({ now, sunrise, sunset, timeZone }: { now: string; sunris
       : `Sunrise ${rise}, sunset ${set}. ${Math.round(p * 100)}% of daylight has passed.`;
 
   return (
-    <figure>
-      <svg viewBox="0 0 200 100" className="mx-auto block w-full max-w-[16rem]" role="img" aria-label={label}>
-        <line x1="8" y1={BASE} x2="192" y2={BASE} stroke="var(--color-line)" strokeWidth="1" />
-        <path d={track} fill="none" stroke="var(--color-line)" strokeWidth="1.5" strokeDasharray="3 4" />
-        {sun && angle != null && (
-          <>
-            <path
-              d={`M ${CX - R} ${BASE} A ${R} ${R} 0 0 1 ${sun.x.toFixed(2)} ${sun.y.toFixed(2)}`}
-              fill="none"
-              stroke="#e0a64f"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx={sun.x} cy={sun.y} r="6" fill="#f2b84b" stroke="var(--color-surface)" strokeWidth="2" />
-          </>
-        )}
-      </svg>
-      <figcaption className="tabular mt-1 flex justify-between text-sm">
-        <span>
-          <span className="block text-xs text-muted">Sunrise</span>
-          {rise}
-        </span>
-        <span className="self-end text-xs text-muted">{dayLength(sunrise, sunset)} of daylight</span>
-        <span className="text-right">
-          <span className="block text-xs text-muted">Sunset</span>
-          {set}
-        </span>
+    <figure className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-3 text-sm">
+      <figcaption className="tabular">
+        <span className="block text-xs text-muted">Sunrise</span>
+        {rise}
       </figcaption>
+      <div>
+        <svg viewBox="0 0 200 100" className="mx-auto block w-full max-w-[9rem]" role="img" aria-label={label}>
+          <line x1="8" y1={BASE} x2="192" y2={BASE} stroke="var(--color-line)" strokeWidth="1" />
+          <path d={track} fill="none" stroke="var(--color-line)" strokeWidth="1.5" strokeDasharray="3 4" />
+          {sun && angle != null && (
+            <>
+              <path
+                d={`M ${CX - R} ${BASE} A ${R} ${R} 0 0 1 ${sun.x.toFixed(2)} ${sun.y.toFixed(2)}`}
+                fill="none"
+                stroke="#e0a64f"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <circle cx={sun.x} cy={sun.y} r="6" fill="#f2b84b" stroke="var(--color-surface)" strokeWidth="2" />
+            </>
+          )}
+        </svg>
+      </div>
+      <p className="tabular text-right">
+        <span className="block text-xs text-muted">Sunset</span>
+        {set}
+      </p>
     </figure>
   );
 }

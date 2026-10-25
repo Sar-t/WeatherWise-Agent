@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatHour, formatPercent, formatTemp, formatTime, formatWeekday, secondaryPlaceLine } from "./format";
+import {
+  formatHour,
+  formatPercent,
+  formatTemp,
+  formatTime,
+  formatWeekday,
+  keepUnits,
+  secondaryPlaceLine,
+} from "./format";
 
 describe("times are shown in the place's own timezone", () => {
   const instant = "2026-10-25T07:30:00Z";
@@ -39,5 +47,18 @@ describe("secondaryPlaceLine", () => {
     expect(secondaryPlaceLine("New Delhi", "New Delhi, India")).toBe("India");
     expect(secondaryPlaceLine("Paris", "Paris, IDF, France")).toBe("France");
     expect(secondaryPlaceLine("Los Angeles, United States", "Los Angeles, CA, United States of America")).toBe("");
+  });
+});
+
+describe("keepUnits", () => {
+  const NBSP = String.fromCharCode(160);
+
+  it("joins a number to its unit with a non-breaking space", () => {
+    expect(keepUnits("From W, gusts 48 km/h")).toBe(`From W, gusts 48${NBSP}km/h`);
+    expect(keepUnits("Wind 21 km/h and 2 mm of rain")).toBe(`Wind 21${NBSP}km/h and 2${NBSP}mm of rain`);
+  });
+
+  it("leaves words that only start like a unit alone", () => {
+    expect(keepUnits("2 hours left")).toBe("2 hours left");
   });
 });

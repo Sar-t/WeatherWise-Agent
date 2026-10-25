@@ -11,7 +11,7 @@ import { AirQualityCard } from "./AirQualityCard";
 import { AlertsBanner } from "./AlertsBanner";
 import { BestTimeCard } from "./BestTimeCard";
 import { DailyForecast } from "./DailyForecast";
-import { DetailTiles } from "./DetailTiles";
+import { DetailTiles, SunCard } from "./DetailTiles";
 import { HourlyStrip } from "./HourlyStrip";
 import { Header } from "./Header";
 import { Hero } from "./Hero";
@@ -162,7 +162,7 @@ export function Dashboard() {
 
 /**
  * Two columns on large screens; one on phones, in reading order: alerts, hero, best time, hourly,
- * air quality, 7-day, details. The column wrappers dissolve on phones (display: contents) so each
+ * air quality, 7-day, details, sunrise and sunset. The column wrappers dissolve on phones (display: contents) so each
  * card can take its own place in that order.
  */
 function DashboardView({ data, stale }: { data: DashboardData; stale: boolean }) {
@@ -180,13 +180,14 @@ function DashboardView({ data, stale }: { data: DashboardData; stale: boolean })
           <div className="order-1 lg:order-none"><Hero data={data} /></div>
           <div className="order-3 lg:order-none"><HourlyStrip hours={data.hourly} timeZone={tz} /></div>
           <div className="order-5 lg:order-none"><DailyForecast daily={data.daily} /></div>
+          <div className="order-7 lg:order-none">
+            <SunCard current={data.current} now={data.local_time} timeZone={tz} />
+          </div>
         </div>
         <div className="contents lg:flex lg:flex-col lg:gap-6">
           <div className="order-2 lg:order-none"><BestTimeCard outdoor={data.outdoor_today} timeZone={tz} /></div>
           <div className="order-4 lg:order-none"><AirQualityCard air={data.air_quality} timeZone={tz} /></div>
-          <div className="order-6 lg:order-none">
-            <DetailTiles current={data.current} now={data.local_time} timeZone={tz} />
-          </div>
+          <div className="order-6 lg:order-none"><DetailTiles current={data.current} /></div>
         </div>
       </div>
     </div>

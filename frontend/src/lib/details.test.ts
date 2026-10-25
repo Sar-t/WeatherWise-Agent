@@ -40,7 +40,7 @@ describe("wind and sun", () => {
     const set = "2026-10-25T18:00:00+05:30";
     expect(sunProgress("2026-10-25T12:00:00+05:30", rise, set)).toBe(0.5);
     expect(sunProgress("2026-10-25T20:00:00+05:30", rise, set)).toBeNull();
-    expect(dayLength(rise, "2026-10-25T17:42:00+05:30")).toBe("11 h 42 min");
+    expect(dayLength(rise, "2026-10-25T17:42:00+05:30")).toBe("11\xa0h 42\xa0min");
   });
 });
 
