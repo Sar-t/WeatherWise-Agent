@@ -18,6 +18,8 @@ import { ReplyExtras, ReplyText } from "./AssistantMessage";
 export const MAX_CHARS = 500;
 const COUNTER_FROM = 400;
 const DESKTOP = "(min-width: 1280px)"; // side panel beside the dashboard; below this, a full-height sheet
+const NEAR_BOTTOM = 48; // px: closer than this to the end of the list counts as following it
+const REPLY_GAP = 12; // px above a finished reply when it's brought to the top
 
 type UserTurn = { id: string; role: "user"; text: string };
 type AssistantTurn = {
@@ -81,6 +83,8 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const followRef = useRef(true); // false once the user scrolls up to read; sending turns it back on
+  const landOnRef = useRef<string | null>(null); // a reply that just finished, to show from its start
   const abortRef = useRef<AbortController | null>(null);
   const conversationRef = useRef<string | null>(null);
   const wasOpen = useRef(false);
@@ -119,9 +123,15 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
     wasOpen.current = open;
   }, [open]);
 
-  // Keep the newest message in view.
+  // While streaming, follow the newest text; when a reply finishes, bring its start to the top. Both
+  // only while the user is following: someone who scrolled up to read stays where they are.
   useEffect(() => {
-    listRef.current?.scrollTo?.({ top: listRef.current.scrollHeight });
+    const list = listRef.current;
+    const landOn = landOnRef.current;
+    landOnRef.current = null;
+    if (!list || !followRef.current) return;
+    const reply = landOn ? list.querySelector<HTMLElement>(`[data-turn="${landOn}"]`) : null;
+    list.scrollTo?.({ top: reply ? reply.offsetTop - REPLY_GAP : list.scrollHeight });
   }, [turns]);
 
   // The per-minute limit's countdown.
@@ -173,6 +183,7 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
             if (event.type === "status") patch(replyId, { status: statusLine(event.text) });
             else if (event.type === "token") patch(replyId, (t) => ({ text: t.text + event.text }));
             else if (event.type === "message") {
+              landOnRef.current = replyId;
               patch(replyId, { state: "done", text: event.response.text, response: event.response, status: undefined });
               setAnnouncement(event.response.text);
             } else {
@@ -215,6 +226,7 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
     const message = text.trim();
     if (!message || busy || cooldown > 0 || message.length > MAX_CHARS) return;
     const id = newId();
+    followRef.current = true;
     setTurns((ts) => [...ts, { id, role: "user", text: message }]);
     setDraft("");
     void ask(id, message);
@@ -222,13 +234,17 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
 
   function retry(reply: AssistantTurn) {
     const user = turns.find((t) => t.id === reply.replyTo);
-    if (user && !busy) void ask(user.id, user.text);
+    if (user && !busy) {
+      followRef.current = true;
+      void ask(user.id, user.text);
+    }
   }
 
   function reset(id: string | null, next: Turn[]) {
     abortRef.current?.abort();
     conversationRef.current = id;
     saveConversationId(id);
+    followRef.current = true;
     setTurns(next);
     setAnnouncement("");
     setHistory(null);
@@ -381,7 +397,14 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
           </HeaderButton>
         </header>
 
-        <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-5">
+        <div
+          ref={listRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM;
+          }}
+          className="relative flex-1 overflow-y-auto px-4 py-5"
+        >
           {turns.length === 0 ? (
             <div>
               <p className="text-[0.95rem] text-ink-soft">
@@ -407,12 +430,12 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
             <ol className="flex flex-col gap-5" aria-label="Conversation">
               {turns.map((t) =>
                 t.role === "user" ? (
-                  <li key={t.id} className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-accent-soft px-4 py-2.5 text-[0.95rem] text-ink">
+                  <li key={t.id} data-turn={t.id} className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-accent-soft px-4 py-2.5 text-[0.95rem] text-ink">
                     <span className="sr-only">You: </span>
                     {t.text}
                   </li>
                 ) : (
-                  <li key={t.id} className="text-[0.95rem] leading-relaxed text-ink">
+                  <li key={t.id} data-turn={t.id} className="text-[0.95rem] leading-relaxed text-ink">
                     <Reply turn={t} cooldown={cooldown} onRetry={() => retry(t)} />
                   </li>
                 ),

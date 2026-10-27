@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -293,5 +293,68 @@ describe("conversations", () => {
     await user.click(within(menu).getByRole("menuitem", { name: (name) => name.startsWith(realConversation.conversation.title) }));
     expect(await screen.findByText(realConversation.messages[0].text)).toBeInTheDocument();
     expect(window.localStorage.getItem("ww.conversationId")).toBe(id);
+  });
+});
+
+describe("scrolling", () => {
+  // jsdom has no layout: give the list a size and each turn a position, and record scrolls.
+  const REPLY_TOP = 300;
+  let scrollTo: ReturnType<typeof vi.fn>;
+  const restore: (() => void)[] = [];
+
+  function stub(name: string, value: PropertyDescriptor) {
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, name);
+    Object.defineProperty(HTMLElement.prototype, name, { configurable: true, ...value });
+    restore.push(() => (original ? Object.defineProperty(HTMLElement.prototype, name, original) : delete (HTMLElement.prototype as never)[name]));
+  }
+
+  beforeEach(() => {
+    scrollTo = vi.fn();
+    stub("scrollTo", { value: scrollTo, writable: true });
+    stub("scrollHeight", { get: () => 2000 });
+    stub("clientHeight", { get: () => 400 });
+    stub("offsetTop", { get(this: HTMLElement) { return this.dataset.turn ? REPLY_TOP : 0; } });
+  });
+
+  afterEach(() => {
+    restore.splice(0).reverse().forEach((undo) => undo());
+  });
+
+  it("follows the streamed text, then shows the finished reply from its start", async () => {
+    const stream = streamRoute();
+    const user = await openPanel();
+    await ask(user, "Can I go for a run in Delhi tomorrow evening?");
+    act(() => stream.push(sse("token", { text: "Running is " })));
+    await screen.findByText("Running is");
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 2000 });
+
+    act(() => {
+      stream.push(sse("message", REAL_MESSAGE));
+      stream.end();
+    });
+    await screen.findByRole("region", { name: "Running in New Delhi" });
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: REPLY_TOP - 12 });
+  });
+
+  it("leaves the list alone once the user scrolls up to read", async () => {
+    const stream = streamRoute();
+    const user = await openPanel();
+    await ask(user, "Will it rain?");
+    act(() => stream.push(sse("token", { text: "Probably " })));
+    await screen.findByText("Probably");
+
+    const list = screen.getByRole("list", { name: "Conversation" }).parentElement!;
+    list.scrollTop = 100; // 1500 px from the end
+    fireEvent.scroll(list);
+    const calls = scrollTo.mock.calls.length;
+
+    act(() => stream.push(sse("token", { text: "not" })));
+    await screen.findByText("Probably not");
+    act(() => {
+      stream.push(sse("message", REAL_MESSAGE));
+      stream.end();
+    });
+    await screen.findByRole("region", { name: "Running in New Delhi" });
+    expect(scrollTo.mock.calls.length).toBe(calls);
   });
 });
