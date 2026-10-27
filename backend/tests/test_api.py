@@ -409,6 +409,19 @@ def test_dashboard_for_a_place(make_client, recorded) -> None:
         "suitable", "marginal", "not_suitable"}
 
 
+def test_json_is_gzipped_but_the_chat_stream_is_not(make_client, recorded, agent: FakeAgent) -> None:
+    client = make_client(clock=lambda: AQ_NOW)
+    response = dashboard(client, place="Delhi")
+    assert response.headers["content-encoding"] == "gzip"
+    assert response.json()["location"]["name"] == "New Delhi"  # httpx decodes it
+
+    with client.stream("POST", "/api/v1/chat/stream", json={"message": "weather?"},
+                       headers={**h(), "Accept-Encoding": "gzip"}) as r:
+        body = r.read().decode()
+    assert "content-encoding" not in r.headers  # streamed events must reach the browser as they come
+    assert "event: message" in body
+
+
 def test_dashboard_late_evening_shows_tomorrow(make_client, recorded) -> None:
     late = AQ_NOW.replace(hour=22, minute=30)  # fewer than 2 hours left today
     client = make_client(clock=lambda: late)

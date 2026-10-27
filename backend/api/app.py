@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import Depends, FastAPI, Header, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -132,6 +133,9 @@ def create_app(
     app.state.clock = clock
     app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
                        allow_methods=["*"], allow_headers=["*"], expose_headers=["X-Request-ID", "Retry-After"])
+    # JSON responses (the dashboard is ~7 KB) go out gzipped when the browser accepts it. Starlette
+    # leaves text/event-stream alone, so the chat stream still flushes token by token.
+    app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
     @app.middleware("http")
     async def request_context(request: Request, call_next):
