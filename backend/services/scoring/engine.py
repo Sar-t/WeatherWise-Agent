@@ -342,12 +342,15 @@ def _missing_notes(slots: list[_Slot], profile: Profile) -> list[str]:
     return notes
 
 
+AIR_NOT_REQUESTED_NOTE = "Air quality not provided; scored on weather alone."
+
+
 def _air_notes(slots: list[_Slot], air_given: bool) -> list[str]:
     notes = []
     missing = sum(1 for s in slots if s.air is None)
     unit = "parts of the day" if all(s.part for s in slots) else "hours"
     if not air_given:
-        notes.append("Air quality not provided; scored on weather alone.")
+        notes.append(AIR_NOT_REQUESTED_NOTE)
     elif slots and missing == len(slots):
         notes.append("Air quality unavailable; not scored.")
     elif missing:

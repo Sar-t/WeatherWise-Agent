@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from evals.run_answers import check_best_time, check_internal_terms
+from evals.run_answers import check_air_unavailable, check_best_time, check_internal_terms
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -70,3 +70,40 @@ def test_internal_terms_fail_in_real_replies() -> None:
 def test_plain_verdict_wording_passes() -> None:
     assert check_internal_terms("Conditions look ideal for a run in Delhi tomorrow between 06:30 and 07:30. "
                                 "Scorching heat is not expected.") == []
+
+
+# --- air quality unavailable, per place --------------------------------------------------------------
+
+# Section headers from the real sc_compare_run_delhi_mumbai observations (no air quality for either).
+COMPARE_OBS = """New Delhi | ACTIVITY ASSESSMENT (running) | Fri 23 Oct, 06:00-12:00 IST
+Data note: Air quality not provided; scored on weather alone.
+Bandra West, Mumbai | ACTIVITY ASSESSMENT (running) | Fri 23 Oct, 06:00-12:00 IST
+New Delhi | FORECAST, hourly | Fri 23 Oct, 06:00-12:00 IST
+Bandra West, Mumbai | FORECAST, hourly | Fri 23 Oct, 06:00-12:00 IST"""
+
+# Constructed headers in the same format: Delhi has air quality, Mumbai's couldn't be fetched.
+MIXED_OBS = """New Delhi | AIR QUALITY FORECAST, hourly (India NAQI, CPCB) | Fri 23 Oct, 06:00-12:00 IST
+Summary of 6 hours: worst NAQI 126, Moderately Polluted, PM2.5 at Fri 07:30
+Bandra West, Mumbai | AIR QUALITY UNAVAILABLE: OpenWeather request failed (HTTP 503)."""
+
+
+def test_the_real_compare_reply_fails_for_both_places() -> None:
+    reply = ("New Delhi is much better for a run tomorrow morning. Air quality couldn't be checked for either "
+             "location.")
+    assert check_air_unavailable(reply, COMPARE_OBS) == [
+        "says air quality couldn't be checked for New Delhi, but nothing says so",
+        "says air quality couldn't be checked for Bandra West, Mumbai, but nothing says so",
+    ]
+
+
+def test_unavailable_is_judged_per_place() -> None:
+    assert check_air_unavailable("Air quality couldn't be checked for Mumbai.", MIXED_OBS) == []
+    assert check_air_unavailable("Air quality couldn't be checked for Delhi or Mumbai.", MIXED_OBS) == [
+        "says air quality couldn't be checked for New Delhi, which has air quality data"]
+    assert check_air_unavailable("Air quality couldn't be checked for either place.", MIXED_OBS) == [
+        "says air quality couldn't be checked for New Delhi, which has air quality data"]
+    assert check_air_unavailable("Air quality was unavailable.", MIXED_OBS)  # names no place: means all
+
+
+def test_no_claim_no_failure() -> None:
+    assert check_air_unavailable("Delhi's NAQI is expected to reach 126, Moderately Polluted.", MIXED_OBS) == []

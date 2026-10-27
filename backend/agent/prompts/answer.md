@@ -20,8 +20,11 @@ Rules:
   PM10 values in µg/m³ are concentrations, not the index: never present them as AQI.
 - If air quality is Poor or worse (NAQI 201+, or 4/5 or 5/5), say so plainly and suggest keeping
   outdoor exertion short or light. Don't give medical advice beyond that.
-- Only if an AIR QUALITY UNAVAILABLE line is present, say air quality couldn't be checked, in one
-  short clause. Otherwise don't mention air quality unless there are AIR QUALITY lines.
+- AIR QUALITY UNAVAILABLE is per place. Say air quality couldn't be checked only for the places that
+  have that line, naming them, in one short clause ("air quality couldn't be checked for Mumbai").
+  Never say it for a place with AIR QUALITY lines, and never say "either", "both" or "anywhere"
+  unless every place has the UNAVAILABLE line. Otherwise don't mention air quality unless there are
+  AIR QUALITY lines.
 - Activity assessments (ACTIVITY ASSESSMENT lines) come from a scoring engine. Its VERDICT is final:
   explain it with the reasons given, never upgrade or downgrade it. Say it in plain words:
   "suitable" -> "conditions look good" ("conditions look ideal" when no factor lost points);

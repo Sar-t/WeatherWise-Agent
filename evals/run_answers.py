@@ -114,10 +114,55 @@ def first_sentence(text: str) -> str:
 _UNSUPPORTED = [
     (re.compile(r"rough (daily )?outlook|daily estimate", re.I), "DAILY ESTIMATE",
      "calls it a rough outlook / daily estimate, but the observations aren't one"),
-    (re.compile(r"air quality (couldn't|could not|can't|cannot|wasn't|was not) be checked"
-                r"|air quality check nahi", re.I), "AIR QUALITY UNAVAILABLE",
-     "says air quality couldn't be checked, but nothing says so"),
-]
+]  # "air quality couldn't be checked" is checked per place: check_air_unavailable
+
+_AIR_UNAVAILABLE = re.compile(r"air quality (couldn't|could not|can't|cannot|wasn't|was not) be (checked|found)"
+                              r"|air quality (is|was) (unavailable|not available)|no air quality data"
+                              r"|air quality check nahi", re.I)
+_EVERY_PLACE = re.compile(r"\b(either|both|neither|all|any|anywhere|each)\b", re.I)
+
+
+def _air_sections(observations: str) -> tuple[list[str], set[str], set[str]]:
+    """(places in the observations, places with air quality lines, places marked AIR QUALITY UNAVAILABLE),
+    from section headers like "New Delhi | AIR QUALITY FORECAST, hourly (...) | ..."."""
+    places, with_air, unavailable = [], set(), set()
+    for line in observations.splitlines():
+        if " | " not in line or line.startswith("-"):
+            continue
+        place, kind = line.split(" | ", 1)
+        if place not in places:
+            places.append(place)
+        if kind.startswith("AIR QUALITY UNAVAILABLE"):
+            unavailable.add(place)
+        elif kind.startswith(("AIR QUALITY", "PAST AIR QUALITY")):
+            with_air.add(place)
+    return places, with_air, unavailable
+
+
+def _named(place: str, sentence: str) -> bool:
+    """Whether a sentence names a place: any part of "Bandra West, Mumbai", or "Delhi" for "New Delhi"."""
+    parts = [p.strip() for p in place.split(",")]
+    variants = parts + [p[4:] for p in parts if p.startswith("New ")]
+    return any(re.search(rf"(?<!\w){re.escape(v)}(?!\w)", sentence, re.I) for v in variants if v)
+
+
+def check_air_unavailable(reply: str, observations: str) -> list[str]:
+    """Saying air quality couldn't be checked is per place: only for places marked AIR QUALITY
+    UNAVAILABLE, never for one with air quality lines. A sentence that names no place, or says
+    "either"/"both", is about every place in the observations."""
+    places, with_air, unavailable = _air_sections(observations)
+    failures = []
+    for sentence in re.split(r"(?<=[.!?])\s+", reply):
+        if not _AIR_UNAVAILABLE.search(sentence):
+            continue
+        named = [p for p in places if _named(p, sentence)]
+        about = places if _EVERY_PLACE.search(sentence) or not named else named
+        for place in about or ["(no place)"]:
+            if place in with_air:
+                failures.append(f"says air quality couldn't be checked for {place}, which has air quality data")
+            elif place not in unavailable:
+                failures.append(f"says air quality couldn't be checked for {place}, but nothing says so")
+    return list(dict.fromkeys(failures))
 
 
 # How the answer was made is not the user's business: the verdict goes in plain words, the score
@@ -395,6 +440,7 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
         failures += [f"{tag}{f}" for f in check_times(response.text, observations)]
         failures += [f"{tag}{f}" for f in check_best_time(response.text, response.assessments)]
         failures += [f"{tag}{f}" for f in check_unsupported(response.text, observations)]
+        failures += [f"{tag}{f}" for f in check_air_unavailable(response.text, observations)]
         failures += [f"{tag}{f}" for f in check_internal_terms(response.text)]
         if "guidance" in expect:
             failures += [f"{tag}{f}" for f in check_guidance(response, expect["guidance"])]

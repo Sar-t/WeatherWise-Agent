@@ -346,3 +346,14 @@ def test_empty_window_says_so() -> None:
 def test_alert_model_round_trip() -> None:
     alert = WeatherAlert(sender="IMD", event="Heat", start=ist(19), end=ist(20), description="")
     assert alert.end > alert.start
+
+
+def test_air_quality_not_asked_for_is_left_out_of_the_notes() -> None:
+    # Models read "Air quality not provided" as "couldn't be checked"; an actual failure has its own line.
+    from backend.agent.observations import summarize_assessment
+    from backend.services.scoring.engine import AIR_NOT_REQUESTED_NOTE
+
+    a = an_assessment().model_copy(update={"data_quality": [AIR_NOT_REQUESTED_NOTE, "UV index missing for 1 of 6 hours."]})
+    text = summarize_assessment(a)
+    assert "Air quality" not in text
+    assert "Data note: UV index missing for 1 of 6 hours." in text

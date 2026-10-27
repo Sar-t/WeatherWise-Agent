@@ -12,6 +12,7 @@ from backend.services.display import chance as _pct
 from backend.services.display import kmh as _kmh
 from backend.services.display import whole as _int
 from backend.services.scoring.blocks import block_reasons
+from backend.services.scoring.engine import AIR_NOT_REQUESTED_NOTE
 from backend.services.scoring.models import ActivityAssessment
 from backend.services.models import (
     AirQualityPoint,
@@ -142,7 +143,9 @@ def summarize_assessment(a: ActivityAssessment, recommendation_type: str | None 
     }
     for name in SECTION_ORDER[kind]:
         lines += sections[name]
-    notes = [f"Data note: {n}" for n in a.data_quality]
+    # Air quality not being asked for says nothing about the weather, and models read it as "couldn't
+    # be checked"; an actual failure has its own AIR QUALITY UNAVAILABLE line.
+    notes = [f"Data note: {n}" for n in a.data_quality if n != AIR_NOT_REQUESTED_NOTE]
     while notes and len("\n".join(lines + notes)) > max_chars:
         notes.pop()
     text = "\n".join(lines + notes)
