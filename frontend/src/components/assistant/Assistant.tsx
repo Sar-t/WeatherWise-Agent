@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type RefObject } from "react";
 import { ApiError, type ChatResponse, type ConversationDetail, type ConversationOut, type Dashboard } from "@/lib/api";
 import {
   createConversation,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/chat";
 import { suggestions } from "@/lib/suggestions";
 import { UiIcon } from "../icons/UiIcon";
+import { ASSISTANT_PANEL_ID } from "./AssistantButton";
 import { ReplyExtras, ReplyText } from "./AssistantMessage";
 
 export const MAX_CHARS = 500;
@@ -75,11 +76,16 @@ function fromHistory(detail: ConversationDetail): Turn[] {
   return turns;
 }
 
-type Props = { data?: Dashboard; open: boolean; onOpen: () => void; onClose: () => void };
+type Props = {
+  data?: Dashboard;
+  open: boolean;
+  onClose: () => void;
+  /** The "Ask WeatherWise" button, which gets focus back when the panel closes. */
+  buttonRef: RefObject<HTMLButtonElement | null>;
+};
 
-export function Assistant({ data, open, onOpen, onClose }: Props) {
+export function Assistant({ data, open, onClose, buttonRef }: Props) {
   const titleId = useId();
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -121,7 +127,7 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
     if (open) inputRef.current?.focus();
     else if (wasOpen.current) buttonRef.current?.focus();
     wasOpen.current = open;
-  }, [open]);
+  }, [open, buttonRef]);
 
   // While streaming, follow the newest text; when a reply finishes, bring its start to the top. Both
   // only while the user is following: someone who scrolled up to read stays where they are.
@@ -309,20 +315,8 @@ export function Assistant({ data, open, onOpen, onClose }: Props) {
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={onOpen}
-        aria-expanded={open}
-        aria-controls="assistant-panel"
-        className={`inline-flex h-12 items-center gap-2 rounded-full bg-accent px-5 text-[0.95rem] font-semibold text-white shadow-raised transition hover:bg-accent-strong ${open ? "invisible" : ""}`}
-      >
-        <ChatIcon />
-        Ask WeatherWise
-      </button>
-
       <div
-        id="assistant-panel"
+        id={ASSISTANT_PANEL_ID}
         ref={panelRef}
         role="dialog"
         aria-modal={desktop ? undefined : true}
@@ -551,14 +545,5 @@ function HeaderButton({ label, onClick, expanded, children }: { label: string; o
     >
       {children}
     </button>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M20 12a7.5 7.5 0 0 1-11 6.6L4.5 20l1.4-4A7.5 7.5 0 1 1 20 12Z" />
-    </svg>
   );
 }

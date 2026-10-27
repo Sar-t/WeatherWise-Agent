@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatResponse, Dashboard } from "@/lib/api";
 import realConversation from "@/test/fixtures/conversation-delhi-run.json";
@@ -10,6 +10,7 @@ import delhi from "@/test/fixtures/dashboard-delhi.json";
 import realStream from "@/test/fixtures/chat-stream-delhi-run.sse?raw";
 import { controlled, sse } from "@/test/streams";
 import { Assistant } from "./Assistant";
+import { AssistantButton } from "./AssistantButton";
 
 // The canonical reply recorded from the real backend (a run in Delhi tomorrow evening).
 const REAL_MESSAGE: ChatResponse = JSON.parse(/event: message\r?\ndata: (.*)/.exec(realStream)![1]);
@@ -17,7 +18,13 @@ const data = delhi as Dashboard;
 
 function Harness({ dashboard = data }: { dashboard?: Dashboard }) {
   const [open, setOpen] = useState(false);
-  return <Assistant data={dashboard} open={open} onOpen={() => setOpen(true)} onClose={() => setOpen(false)} />;
+  const button = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <AssistantButton ref={button} open={open} panelLoaded onClick={() => setOpen(true)} />
+      <Assistant data={dashboard} open={open} onClose={() => setOpen(false)} buttonRef={button} />
+    </>
+  );
 }
 
 type Handler = (init: RequestInit) => Response | Promise<Response>;
@@ -326,14 +333,15 @@ describe("scrolling", () => {
     await ask(user, "Can I go for a run in Delhi tomorrow evening?");
     act(() => stream.push(sse("token", { text: "Running is " })));
     await screen.findByText("Running is");
-    expect(scrollTo).toHaveBeenLastCalledWith({ top: 2000 });
+    // The scroll happens in an effect after the text renders: wait for it rather than racing it.
+    await waitFor(() => expect(scrollTo).toHaveBeenLastCalledWith({ top: 2000 }));
 
     act(() => {
       stream.push(sse("message", REAL_MESSAGE));
       stream.end();
     });
     await screen.findByRole("region", { name: "Running in New Delhi" });
-    expect(scrollTo).toHaveBeenLastCalledWith({ top: REPLY_TOP - 12 });
+    await waitFor(() => expect(scrollTo).toHaveBeenLastCalledWith({ top: REPLY_TOP - 12 }));
   });
 
   it("leaves the list alone once the user scrolls up to read", async () => {
@@ -342,6 +350,7 @@ describe("scrolling", () => {
     await ask(user, "Will it rain?");
     act(() => stream.push(sse("token", { text: "Probably " })));
     await screen.findByText("Probably");
+    await waitFor(() => expect(scrollTo).toHaveBeenLastCalledWith({ top: 2000 })); // still following
 
     const list = screen.getByRole("list", { name: "Conversation" }).parentElement!;
     list.scrollTop = 100; // 1500 px from the end

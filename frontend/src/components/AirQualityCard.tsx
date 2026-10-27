@@ -1,10 +1,14 @@
 "use client";
 
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import dynamic from "next/dynamic";
 import type { DashboardAir } from "@/lib/api";
 import { NAQI_COLOURS, OWM_COLOURS, naqiStyle, owmStyle } from "@/lib/aqi";
 import { formatHour, formatTime } from "@/lib/format";
 import { Card, CardTitle } from "./Card";
+import { WhenVisible } from "./WhenVisible";
+
+// Recharts is the largest library on the page: load it once the card is near the viewport.
+const AirChart = dynamic(() => import("./charts/AirChart"), { ssr: false, loading: () => <div className="h-full" /> });
 
 const POLLUTANT_NAMES: Record<string, string> = {
   "PM2.5": "PM2.5",
@@ -80,27 +84,9 @@ export function AirQualityCard({ air, timeZone }: { air: DashboardAir | null | u
             <span>Next 24 hours</span>
             <span className="sr-only">{summary}</span>
           </figcaption>
-          <div className="h-20" aria-hidden>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chart} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
-                <XAxis dataKey="hour" interval={5} tickLine={false} axisLine={false}
-                       tick={{ fontSize: 11, fill: "var(--color-muted)" }} />
-                <YAxis hide domain={[0, "dataMax"]} />
-                <Tooltip
-                  cursor={{ fill: "var(--color-line-soft)" }}
-                  contentStyle={{ borderRadius: 12, border: "1px solid var(--color-line)", fontSize: 12 }}
-                  labelFormatter={(_, payload) => payload?.[0]?.payload?.time ?? ""}
-                  formatter={(value, _name, item) => [`${value}${air.scale === "owm" ? "/5" : ""} · ${item.payload.category}`,
-                    air.scale === "naqi" ? "NAQI" : "Level"]}
-                />
-                <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                  {chart.map((d, i) => (
-                    <Cell key={i} fill={d.colour} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <WhenVisible className="h-20" aria-hidden>
+            <AirChart data={chart} scale={air.scale} />
+          </WhenVisible>
           <p className="mt-2 text-xs text-muted" aria-hidden>{summary}</p>
         </figure>
       )}

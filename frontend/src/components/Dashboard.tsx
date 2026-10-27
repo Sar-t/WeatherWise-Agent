@@ -1,23 +1,30 @@
 "use client";
 
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, fetchDashboard, placeKey, type Candidate, type Place } from "@/lib/api";
+import { getQueryClient } from "@/app/providers";
 import { loadPlace, savePlace } from "@/lib/location-store";
 import type { Dashboard as DashboardData } from "@/lib/api";
 import { formatTime } from "@/lib/format";
 import { AirQualityCard } from "./AirQualityCard";
-import { Assistant } from "./assistant/Assistant";
+import { AssistantButton } from "./assistant/AssistantButton";
 import { AlertsBanner } from "./AlertsBanner";
 import { BestTimeCard } from "./BestTimeCard";
 import { DailyForecast } from "./DailyForecast";
+import { Footer } from "./Footer";
+import { WhenVisible } from "./WhenVisible";
 import { DetailTiles, SunCard } from "./DetailTiles";
 import { HourlyStrip } from "./HourlyStrip";
 import { Header } from "./Header";
 import { Hero } from "./Hero";
 import { WelcomeCard } from "./WelcomeCard";
 import { DashboardSkeleton, ErrorCard } from "./States";
+
+// The assistant panel (and its chat code) loads on first open, so the dashboard paints without it.
+const AssistantPanel = dynamic(() => import("./assistant/Assistant").then((m) => m.Assistant), { ssr: false });
 
 export function dashboardQuery(place: Place) {
   return {
@@ -47,6 +54,13 @@ function initialPlace(params: URLSearchParams | null): Place | null {
   return fromUrl ? { kind: "place", name: fromUrl } : loadPlace();
 }
 
+// Start the first dashboard request as soon as this code loads, not after hydration: on a slow phone
+// that's seconds sooner. Same query key, so the component picks up this request instead of a new one.
+if (typeof window !== "undefined") {
+  const first = initialPlace(new URLSearchParams(window.location.search));
+  if (first) void getQueryClient().prefetchQuery(dashboardQuery(first));
+}
+
 export function Dashboard() {
   const params = useSearchParams();
   const queryClient = useQueryClient();
@@ -62,6 +76,8 @@ export function Dashboard() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantLoaded, setAssistantLoaded] = useState(false); // the panel's code loads on first open
+  const assistantButton = useRef<HTMLButtonElement>(null);
 
   const shown = useQuery({
     ...(place ? dashboardQuery(place) : { queryKey: ["dashboard", null], queryFn: () => Promise.reject() }),
@@ -144,7 +160,7 @@ export function Dashboard() {
         message={note}
       />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-8" aria-busy={shown.isFetching}>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-6 sm:px-6 lg:px-8" aria-busy={shown.isFetching}>
         {place === undefined || (place && shown.isPending && !shownAmbiguous) ? (
           <DashboardSkeleton />
         ) : !place || shownAmbiguous ? (
@@ -155,9 +171,26 @@ export function Dashboard() {
           <ErrorCard message={errorMessage(shown.error)} onRetry={() => void shown.refetch()} />
         ) : null}
       </main>
+      <Footer />
 
       <div id="assistant-slot" className="fixed bottom-6 right-6 z-30">
-        <Assistant data={data} open={assistantOpen} onOpen={() => setAssistantOpen(true)} onClose={() => setAssistantOpen(false)} />
+        <AssistantButton
+          ref={assistantButton}
+          open={assistantOpen}
+          panelLoaded={assistantLoaded}
+          onClick={() => {
+            setAssistantLoaded(true);
+            setAssistantOpen(true);
+          }}
+        />
+        {assistantLoaded && (
+          <AssistantPanel
+            data={data}
+            open={assistantOpen}
+            onClose={() => setAssistantOpen(false)}
+            buttonRef={assistantButton}
+          />
+        )}
       </div>
     </div>
   );
@@ -186,15 +219,21 @@ function DashboardView({ data, stale }: { data: DashboardData; stale: boolean })
         <div className="contents lg:flex lg:flex-col lg:gap-6">
           <div className="order-1 lg:order-none"><Hero data={data} /></div>
           <div className="order-3 lg:order-none"><HourlyStrip hours={data.hourly} timeZone={tz} /></div>
-          <div className={`order-5 ${FILL}`}><DailyForecast daily={data.daily} /></div>
+          <WhenVisible className={`order-5 ${FILL}`} reserve="27rem"><DailyForecast daily={data.daily} /></WhenVisible>
         </div>
         <div className="contents lg:flex lg:flex-col lg:gap-6">
           <div className="order-2 lg:order-none"><BestTimeCard outdoor={data.outdoor_today} timeZone={tz} /></div>
-          <div className="order-4 lg:order-none"><AirQualityCard air={data.air_quality} timeZone={tz} /></div>
-          <div className={`order-6 ${FILL}`}><DetailTiles current={data.current} today={data.daily[0]} /></div>
+          <WhenVisible className="order-4 lg:order-none" reserve="26rem">
+            <AirQualityCard air={data.air_quality} timeZone={tz} />
+          </WhenVisible>
+          <WhenVisible className={`order-6 ${FILL}`} reserve="24rem">
+            <DetailTiles current={data.current} today={data.daily[0]} />
+          </WhenVisible>
         </div>
       </div>
-      <SunCard current={data.current} now={data.local_time} timeZone={tz} />
+      <WhenVisible reserve="10rem">
+        <SunCard current={data.current} now={data.local_time} timeZone={tz} />
+      </WhenVisible>
     </div>
   );
 }

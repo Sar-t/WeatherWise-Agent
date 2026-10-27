@@ -24,7 +24,7 @@ export function makeQueryClient(): QueryClient {
   });
 }
 
-function getQueryClient() {
+export function getQueryClient() {
   // Keep server requests isolated and preserve the browser cache across renders.
   if (typeof window === "undefined") return makeQueryClient();
   browserQueryClient ??= makeQueryClient();

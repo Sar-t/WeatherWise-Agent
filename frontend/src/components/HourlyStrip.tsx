@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bar, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import type { HourOut } from "@/lib/api";
 import { hourlySummary } from "@/lib/details";
 import { formatHour, formatTemp } from "@/lib/format";
 import { Card, CardTitle } from "./Card";
+import HourlyChart from "./charts/HourlyChart";
 import { UiIcon } from "./icons/UiIcon";
 import { ICON_LABELS, WeatherIcon, type IconKey } from "./icons/WeatherIcon";
 
@@ -13,6 +13,7 @@ const COL = 56; // px per hour; the chart's bands use the same width so points s
 const CHART_H = 56; // with rain bars under the line
 const LINE_H = 36; // line only, when no hour has any chance of rain
 const STEP = COL * 4;
+
 
 /** The next 24 hours: hour, icon and temperature per column, a temperature line and rain-chance bars. */
 export function HourlyStrip({ hours, timeZone }: { hours: HourOut[]; timeZone: string }) {
@@ -91,28 +92,7 @@ export function HourlyStrip({ hours, timeZone }: { hours: HourOut[]; timeZone: s
                 ))}
               </ol>
               <div aria-hidden className="mt-1">
-                <ComposedChart
-                  width={width}
-                  height={anyRain ? CHART_H : LINE_H}
-                  data={data}
-                  margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
-                >
-                  <XAxis dataKey="hour" hide />
-                  <YAxis yAxisId="temp" hide domain={domain} />
-                  <YAxis yAxisId="rain" hide domain={[0, 100]} />
-                  {anyRain && (
-                    <Bar yAxisId="rain" dataKey="rain" fill="#b9d3e0" radius={[3, 3, 0, 0]} barSize={20} isAnimationActive={false} />
-                  )}
-                  <Line
-                    yAxisId="temp"
-                    dataKey="temp"
-                    type="monotone"
-                    stroke="var(--color-accent)"
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </ComposedChart>
+                <HourlyChart width={width} height={anyRain ? CHART_H : LINE_H} data={data} domain={domain} rain={anyRain} />
                 {anyRain && (
                   <div className="grid text-center" style={grid}>
                     {hours.map((h) => {

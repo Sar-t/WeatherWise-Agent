@@ -123,9 +123,19 @@ together if you use another port.
 
 ```bash
 npm test                                        # Vitest: helpers and UI states, with a mocked API
+npm run e2e                                     # Playwright: Chromium, Edge and a 390 px phone (see below)
 npm run lint
+npm run icons                                   # after changing the sun mark: regenerate favicon and app icons
 npm run gen:api                                 # after an API change: re-export openapi.json, then regenerate types
 ```
+
+The end-to-end tests build the app into `.next-e2e` and run it on port 3100 with the backend mocked
+from recorded fixtures. Every request without a fixture is blocked and fails the test, so they never
+reach a real API or use quota. First time only: `npx playwright install chromium` (Edge is used as
+installed). Safari can't be tested on Windows.
+
+For production, set the variables in both `.env.example` files (backend `CORS_ORIGINS` must be the
+real frontend URL) and build with `npm run build && npm start`.
 
 The "Ask WeatherWise" button opens the assistant, which streams answers from `/api/v1/chat/stream`
 about the dashboard's place (or any place named in the question). It needs the backend's LLM keys.

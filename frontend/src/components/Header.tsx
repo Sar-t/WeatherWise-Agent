@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useId, useState, type FormEvent, type RefObject } from "react";
 import type { Candidate } from "@/lib/api";
 import { localClock } from "@/lib/format";
+import { Wordmark } from "./Brand";
 import { UiIcon } from "./icons/UiIcon";
 
 type Props = {
@@ -55,10 +55,7 @@ export function Header(props: Props) {
 
   return (
     <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 pt-5 sm:px-6 lg:px-8">
-      <Link href="/" className="flex items-center gap-2 rounded-lg text-ink" aria-label="WeatherWise home">
-        <Mark />
-        <span className="font-display text-[1.35rem] font-semibold tracking-tight">WeatherWise</span>
-      </Link>
+      <Wordmark />
 
       <div className="relative order-last w-full sm:order-none sm:w-auto sm:flex-1 sm:max-w-md">
         <form role="search" onSubmit={submit} className="flex items-center gap-2">
@@ -144,20 +141,5 @@ export function Header(props: Props) {
         </button>
       </div>
     </header>
-  );
-}
-
-function Mark() {
-  // A sun half-risen over a horizon: the wordmark's small companion.
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
-         strokeLinecap="round" aria-hidden className="text-accent">
-      <path d="M6.5 15.5a5.5 5.5 0 0 1 11 0" />
-      <line x1="3" y1="15.5" x2="21" y2="15.5" />
-      <line x1="7" y1="19" x2="17" y2="19" />
-      <line x1="12" y1="4.5" x2="12" y2="6.5" />
-      <line x1="5.2" y1="7.8" x2="6.6" y2="9.2" />
-      <line x1="18.8" y1="7.8" x2="17.4" y2="9.2" />
-    </svg>
   );
 }
