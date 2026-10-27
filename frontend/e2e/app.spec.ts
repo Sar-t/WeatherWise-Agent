@@ -137,3 +137,23 @@ test("the About page and the 404 page", async ({ page }) => {
   await page.getByRole("link", { name: "Go to the dashboard" }).click();
   await expect(page).toHaveURL("/");
 });
+
+test("the dashboard request starts before the JavaScript arrives, and only once", async ({ page, api }) => {
+  // Hold every script back: only the inline head script can start the request this early.
+  await page.route("**/_next/static/chunks/*.js", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await route.fallback();
+  });
+  const order: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/v1/dashboard")) order.push("dashboard request");
+  });
+  page.on("requestfinished", (r) => {
+    if (r.url().includes("/_next/static/chunks/") && r.url().endsWith(".js")) order.push("script loaded");
+  });
+
+  await page.goto("/?place=Delhi");
+  await expect(page.getByRole("heading", { level: 1, name: "New Delhi" })).toBeVisible();
+  expect(order[0]).toBe("dashboard request");
+  expect(api.calls).toEqual(["GET /api/v1/dashboard?place=Delhi"]); // the app reused it
+});

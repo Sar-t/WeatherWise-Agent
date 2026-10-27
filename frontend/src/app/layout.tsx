@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { API_BASE_URL } from "@/lib/api";
+import { earlyDashboardScript } from "@/lib/early-fetch";
 import { fontClasses } from "./fonts";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -35,6 +36,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/* The dashboard's first request goes to the API: open that connection while the page loads. */}
         <link rel="preconnect" href={API_BASE_URL} crossOrigin="anonymous" />
+        {/* Starts the dashboard request before the JavaScript arrives (our own fixed script). */}
+        <script dangerouslySetInnerHTML={{ __html: earlyDashboardScript(API_BASE_URL) }} />
       </head>
       <body className="min-h-full">
         <Providers>{children}</Providers>

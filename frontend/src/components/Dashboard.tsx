@@ -54,8 +54,9 @@ function initialPlace(params: URLSearchParams | null): Place | null {
   return fromUrl ? { kind: "place", name: fromUrl } : loadPlace();
 }
 
-// Start the first dashboard request as soon as this code loads, not after hydration: on a slow phone
-// that's seconds sooner. Same query key, so the component picks up this request instead of a new one.
+// Start the first dashboard query as soon as this code loads, not after hydration: on a slow phone
+// that's seconds sooner. It takes over the request the page head already started (early-fetch.ts),
+// and has the component's query key, so the component picks it up instead of asking again.
 if (typeof window !== "undefined") {
   const first = initialPlace(new URLSearchParams(window.location.search));
   if (first) void getQueryClient().prefetchQuery(dashboardQuery(first));

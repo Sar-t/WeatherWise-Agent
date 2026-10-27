@@ -2,6 +2,7 @@
 
 import type { components } from "./api-types";
 import { getClientId } from "./client-id";
+import { takeEarlyResponse } from "./early-fetch";
 
 export type Dashboard = components["schemas"]["DashboardOut"];
 /** A choice offered with a 409 ambiguous_place error (in error.details.candidates). */
@@ -47,12 +48,16 @@ export function placeKey(place: Place): string {
 
 /** Sends a request with the client ID; any failure (network or non-2xx) becomes an ApiError. */
 export async function send(path: string, init?: RequestInit): Promise<Response> {
+  const url = `${API_BASE_URL}${path}`;
+  // The page head may already have started this exact request (see early-fetch.ts): use it.
+  const early = !init?.method || init.method === "GET" ? takeEarlyResponse(url) : null;
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      headers: { "X-Client-Id": getClientId(), Accept: "application/json", ...init?.headers },
-    });
+    response = await (early ??
+      fetch(url, {
+        ...init,
+        headers: { "X-Client-Id": getClientId(), Accept: "application/json", ...init?.headers },
+      }));
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError(0, "network_error", "Can't reach WeatherWise right now. Check your connection.");
