@@ -68,7 +68,8 @@ VERDICT_PHRASES = {
                      "achha nahi", "sahi nahi", "mat jao", "na jaye", "nahi jaana"],
     "marginal": ["possible", "with care", "doable", "manageable", "okay but", "ok but", "marginal", "keep an eye",
                  "be careful", "dhyan", "dhyaan"],
-    "suitable": ["suitable", "good time", "good day", "good idea", "good for", "great", "ideal", "perfect",
+    "suitable": ["suitable", "good time", "good day", "good idea", "good for", "look good", "looks good", "great",
+                 "ideal", "perfect",
                  "fine", "theek hai", "thik hai", "accha hai", "achha hai", "badhiya"],
 }
 # Wording that contradicts each engine verdict. A marginal verdict tolerates mild words either way,
@@ -117,6 +118,16 @@ _UNSUPPORTED = [
                 r"|air quality check nahi", re.I), "AIR QUALITY UNAVAILABLE",
      "says air quality couldn't be checked, but nothing says so"),
 ]
+
+
+# How the answer was made is not the user's business: the verdict goes in plain words, the score
+# is on the card. Whole words only ("scored" or "assessed" in other senses still fail on purpose).
+_INTERNAL = re.compile(r"(?<!\w)(scoring engine|scores?|scored|observations?|data provided|provided data|"
+                       r"assessments?|assessed)(?!\w)", re.I)
+
+
+def check_internal_terms(reply: str) -> list[str]:
+    return [f"mentions internal term {m.group(0)!r}" for m in _INTERNAL.finditer(reply)]
 
 
 def check_unsupported(reply: str, observations: str) -> list[str]:
@@ -384,6 +395,7 @@ async def run_case(case: dict, answer_llm: CachedAnswerLLM) -> tuple[list[str], 
         failures += [f"{tag}{f}" for f in check_times(response.text, observations)]
         failures += [f"{tag}{f}" for f in check_best_time(response.text, response.assessments)]
         failures += [f"{tag}{f}" for f in check_unsupported(response.text, observations)]
+        failures += [f"{tag}{f}" for f in check_internal_terms(response.text)]
         if "guidance" in expect:
             failures += [f"{tag}{f}" for f in check_guidance(response, expect["guidance"])]
         if len(response.assessments) == 1 and not response.debug.answer_fallback:  # comparisons word two verdicts

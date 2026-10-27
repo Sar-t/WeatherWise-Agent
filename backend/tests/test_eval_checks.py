@@ -1,9 +1,9 @@
-"""The answer eval's best-time check (evals/run_answers.py); pure text checks, no LLM."""
+"""Text checks from the answer evals (evals/run_answers.py); no LLM."""
 
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from evals.run_answers import check_best_time
+from evals.run_answers import check_best_time, check_internal_terms
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -52,3 +52,21 @@ def test_a_narrowed_window_fails_and_comparisons_check_each_place() -> None:
 
 def test_nothing_to_check_without_a_best_block() -> None:
     assert check_best_time("Best between 06:30 and 08:30.", [assessment()]) == []
+
+
+# --- internal terms --------------------------------------------------------------------------------
+
+def test_internal_terms_fail_in_real_replies() -> None:
+    # Sentences from real cached eval replies (aq_run_delhi_morning, activity_suitability_run).
+    assert check_internal_terms(
+        "The scoring engine gives this time a perfect score because no weather factors are expected to hinder "
+        "your activity.") == ["mentions internal term 'scoring engine'", "mentions internal term 'score'"]
+    assert check_internal_terms("The activity assessment verdict is not suitable.") == [
+        "mentions internal term 'assessment'"]
+    assert check_internal_terms("Based on the observations and data provided, it stays dry.") == [
+        "mentions internal term 'observations'", "mentions internal term 'data provided'"]
+
+
+def test_plain_verdict_wording_passes() -> None:
+    assert check_internal_terms("Conditions look ideal for a run in Delhi tomorrow between 06:30 and 07:30. "
+                                "Scorching heat is not expected.") == []
