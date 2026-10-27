@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
  */
 export function Footer() {
   return (
-    <footer className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4 text-sm text-muted sm:px-6 lg:px-8">
+    <footer className="mx-auto w-full max-w-6xl px-4 pb-(--page-end-room) pt-4 text-sm text-muted sm:px-6 lg:px-8">
       <div className="border-t border-line pt-5">
         <p className="leading-relaxed">
           Weather and air quality data © <Out href="https://openweathermap.org/">OpenWeather</Out>.{" "}

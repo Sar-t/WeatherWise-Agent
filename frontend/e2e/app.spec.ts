@@ -157,3 +157,37 @@ test("the dashboard request starts before the JavaScript arrives, and only once"
   expect(order[0]).toBe("dashboard request");
   expect(api.calls).toEqual(["GET /api/v1/dashboard?place=Delhi"]); // the app reused it
 });
+
+test("at the end of the page, the Ask button covers no footer text or link", async ({ page }) => {
+  await page.goto("/?place=Delhi");
+  await renderWholeDashboard(page);
+  const own = page.viewportSize()!;
+  // This project's width, plus the narrowest phones and a tablet (the footer wraps differently).
+  for (const width of [own.width, 320, 768]) {
+    await page.setViewportSize({ width, height: own.height });
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(200);
+    expect(await coveredFooterText(page), `at ${width}px`).toEqual([]);
+  }
+});
+
+/** Footer text the Ask button (plus 8 px of air) overlaps on screen. */
+function coveredFooterText(page: Page) {
+  return page.evaluate(() => {
+    const button = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Ask WeatherWise"))!;
+    const b = button.getBoundingClientRect();
+    const margin = 8; // keep a little air around the button too
+    const hits = (r: DOMRect) =>
+      r.width > 0 && r.left < b.right + margin && r.right > b.left - margin && r.top < b.bottom + margin && r.bottom > b.top - margin;
+    const footer = document.querySelector("footer")!;
+    const found: string[] = [];
+    const walker = document.createTreeWalker(footer, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim() || node.parentElement?.closest(".sr-only")) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if ([...range.getClientRects()].some(hits)) found.push(node.textContent.trim());
+    }
+    return found;
+  });
+}

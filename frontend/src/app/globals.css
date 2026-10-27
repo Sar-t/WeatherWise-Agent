@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 /* Design tokens. Light and airy: warm neutral greys, one calm sea-blue accent. */
+/* The floating "Ask WeatherWise" button, and the room the footer leaves below its last line so the
+   button never covers it at the end of a page: the button's height + its offset + a gap. */
+:root {
+  --ask-button-height: 3rem;
+  --ask-button-offset: 1.5rem;
+  --page-end-room: calc(var(--ask-button-height) + var(--ask-button-offset) + 1.5rem);
+}
+
 @theme {
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), ui-serif, Georgia, serif;

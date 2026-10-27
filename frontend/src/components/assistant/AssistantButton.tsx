@@ -21,7 +21,7 @@ export function AssistantButton({
       onClick={onClick}
       aria-expanded={open}
       aria-controls={panelLoaded ? ASSISTANT_PANEL_ID : undefined}
-      className={`inline-flex h-12 items-center gap-2 rounded-full bg-accent px-5 text-[0.95rem] font-semibold text-white shadow-raised transition hover:bg-accent-strong ${open ? "invisible" : ""}`}
+      className={`inline-flex h-(--ask-button-height) items-center gap-2 rounded-full bg-accent px-5 text-[0.95rem] font-semibold text-white shadow-raised transition hover:bg-accent-strong ${open ? "invisible" : ""}`}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
            strokeLinecap="round" strokeLinejoin="round" aria-hidden>

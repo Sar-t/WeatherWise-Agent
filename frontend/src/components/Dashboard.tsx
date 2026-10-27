@@ -174,7 +174,7 @@ export function Dashboard() {
       </main>
       <Footer />
 
-      <div id="assistant-slot" className="fixed bottom-6 right-6 z-30">
+      <div id="assistant-slot" className="fixed right-(--ask-button-offset) bottom-(--ask-button-offset) z-30">
         <AssistantButton
           ref={assistantButton}
           open={assistantOpen}
