@@ -23,15 +23,86 @@ frontend/     Next.js dashboard
 evals/        real-LLM evals for understanding and answers
 ```
 
-## Install
+## Run locally
 
-Requires Python 3.11+.
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20.9+ and npm
+- [OpenWeather](https://openweathermap.org/api) and [Geoapify](https://www.geoapify.com/)
+  API keys
+- A Google Gemini API key if you want to use the AI assistant
+
+### 1. Set up the backend
+
+From the repository root, create a virtual environment and install the Python dependencies.
+
+**Windows PowerShell:**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+```
+
+**macOS/Linux:**
 
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
-pip install -e ".[dev]"
-cp .env.example .env   # then fill in the API keys (see comments in the file)
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+cp .env.example .env
+```
+
+Open `.env` and add at least `OPENWEATHER_API_KEY` and `GEOAPIFY_API_KEY`. To use the
+assistant, also set `GOOGLE_API_KEY` and a supported `LLM_MODEL`. The remaining settings have
+development defaults documented in `.env.example`.
+
+### 2. Set up the frontend
+
+```bash
+cd frontend
+npm install
+```
+
+Then create the frontend environment file:
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env.local
+```
+
+```bash
+# macOS/Linux
+cp .env.example .env.local
+```
+
+The example configuration already points the frontend to `http://localhost:8000`.
+
+### 3. Start the application
+
+Run the backend from the repository root in one terminal, with the virtual environment active:
+
+```bash
+uvicorn backend.api.app:app --reload --port 8000
+```
+
+In a second terminal, start the frontend:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open http://localhost:3000 in your browser. The API documentation is available at
+http://localhost:8000/docs.
+
+Optionally build the local official-guidelines index before starting the backend. The assistant
+works without it, but its answers will not include the indexed guidance:
+
+```bash
+python -m ingestion.build_index
 ```
 
 ## Run tests
@@ -102,20 +173,8 @@ more precisely.
 
 ## Frontend (dashboard)
 
-The dashboard in `frontend/` is a Next.js app that reads the HTTP API above. Needs Node 20.9+.
-
-Run the two in separate terminals:
-
-```bash
-# 1. Backend, from the repo root (with the virtualenv active)
-uvicorn backend.api.app:app --port 8000
-
-# 2. Frontend
-cd frontend
-npm install                                     # once
-cp .env.example .env.local                      # once: NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-npm run dev                                     # http://localhost:3000
-```
+The dashboard in `frontend/` is a Next.js app that reads the HTTP API above. Follow
+[Run locally](#run-locally) to start the backend and frontend development servers.
 
 Open http://localhost:3000, or http://localhost:3000/?place=Pune to start with a place. The backend
 allows the frontend's origin through `CORS_ORIGINS` (default `http://localhost:3000`); change both
